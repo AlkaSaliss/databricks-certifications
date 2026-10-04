@@ -1,0 +1,446 @@
+[
+  {
+    "id": "mv",
+    "title": "Materialized views",
+    "url": "https://docs.databricks.com/aws/en/ldp/concepts/materialized-views",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "st",
+    "title": "Streaming tables",
+    "url": "https://docs.databricks.com/aws/en/ldp/concepts/streaming-tables",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "cdc",
+    "title": "The AUTO CDC APIs: Simplify change data capture with pipelines",
+    "url": "https://docs.databricks.com/aws/en/ldp/cdc",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "watermarks",
+    "title": "Apply watermarks to control data processing thresholds",
+    "url": "https://docs.databricks.com/aws/en/structured-streaming/watermarks",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "foreach",
+    "title": "Use foreachBatch to write to arbitrary data sinks",
+    "url": "https://docs.databricks.com/aws/en/structured-streaming/foreach",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "checkpoint",
+    "title": "Structured Streaming checkpoints",
+    "url": "https://docs.databricks.com/aws/en/structured-streaming/checkpoints",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "pandas",
+    "title": "pandas user-defined functions",
+    "url": "https://docs.databricks.com/aws/en/udf/pandas",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "uc-udf",
+    "title": "SQL and Python user-defined functions (UDFs) in Unity Catalog",
+    "url": "https://docs.databricks.com/aws/en/udf/unity-catalog",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "if-else",
+    "title": "Add branching logic to a job with the If/else task",
+    "url": "https://docs.databricks.com/aws/en/jobs/tasks/if-else",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "for-each",
+    "title": "Use a For each task to run another task in a loop",
+    "url": "https://docs.databricks.com/aws/en/jobs/tasks/for-each",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "task-values",
+    "title": "Use task values to pass information between tasks",
+    "url": "https://docs.databricks.com/aws/en/jobs/task-values",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "run-if",
+    "title": "Configure task dependencies",
+    "url": "https://docs.databricks.com/aws/en/jobs/run-if",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "bundle-settings",
+    "title": "Declarative Automation Bundles configuration",
+    "url": "https://docs.databricks.com/aws/en/dev-tools/bundles/settings",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "wheel",
+    "title": "Build a Python wheel file using Declarative Automation Bundles",
+    "url": "https://docs.databricks.com/aws/en/dev-tools/bundles/python-wheel",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "testing",
+    "title": "Unit testing for Databricks notebooks",
+    "url": "https://docs.databricks.com/aws/en/notebooks/testing",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "serverless-env",
+    "title": "Configure the serverless environment",
+    "url": "https://docs.databricks.com/aws/en/compute/serverless/dependencies",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "autoloader",
+    "title": "What is Auto Loader?",
+    "url": "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "autoloader-schema",
+    "title": "Configure schema inference and evolution in Auto Loader",
+    "url": "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/schema",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "copy-into",
+    "title": "Get started using COPY INTO to load data",
+    "url": "https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/copy-into/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "connect",
+    "title": "Lakeflow Connect connector concepts",
+    "url": "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "federation",
+    "title": "Connect to external databases and catalogs",
+    "url": "https://docs.databricks.com/aws/en/query-federation/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "sharing",
+    "title": "What is OpenSharing?",
+    "url": "https://docs.databricks.com/aws/en/opensharing",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "cleanrooms",
+    "title": "What is Databricks Clean Rooms?",
+    "url": "https://docs.databricks.com/aws/en/clean-rooms/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "row-number",
+    "title": "row_number ranking window function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/row_number",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "join",
+    "title": "JOIN",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-qry-select-join",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "try-cast",
+    "title": "try_cast function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/try_cast",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "parse-json",
+    "title": "parse_json function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/parse_json",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "variant-get",
+    "title": "variant_get function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/variant_get",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "ai-query",
+    "title": "ai_query function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/ai_query",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "expectations",
+    "title": "Manage data quality with pipeline expectations",
+    "url": "https://docs.databricks.com/aws/en/ldp/expectations",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "quarantine",
+    "title": "Expectation recommendations and advanced patterns",
+    "url": "https://docs.databricks.com/aws/en/ldp/expectation-patterns",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "systems",
+    "title": "System tables reference",
+    "url": "https://docs.databricks.com/aws/en/admin/system-tables/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "billing",
+    "title": "Billable usage system table reference",
+    "url": "https://docs.databricks.com/aws/en/admin/system-tables/billing",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "pricing",
+    "title": "Pricing system table reference",
+    "url": "https://docs.databricks.com/aws/en/admin/system-tables/pricing",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "audit",
+    "title": "Audit log system table reference",
+    "url": "https://docs.databricks.com/aws/en/admin/system-tables/audit-logs",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "jobs-tables",
+    "title": "Jobs system table reference",
+    "url": "https://docs.databricks.com/aws/en/admin/system-tables/jobs",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "event-log",
+    "title": "Pipeline event log",
+    "url": "https://docs.databricks.com/aws/en/ldp/monitor-event-logs",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "profile",
+    "title": "Query profile",
+    "url": "https://docs.databricks.com/aws/en/sql/user/queries/query-profile",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "alerts",
+    "title": "Databricks SQL alerts",
+    "url": "https://docs.databricks.com/aws/en/sql/user/alerts/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "clustering",
+    "title": "Use liquid clustering for tables",
+    "url": "https://docs.databricks.com/aws/en/tables/clustering",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "predictive",
+    "title": "Predictive optimization for Unity Catalog managed tables",
+    "url": "https://docs.databricks.com/aws/en/optimizations/predictive-optimization",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "deletion-vectors",
+    "title": "Deletion vectors in Databricks",
+    "url": "https://docs.databricks.com/aws/en/tables/features/deletion-vectors",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "cdf",
+    "title": "Use change data feed on Databricks",
+    "url": "https://docs.databricks.com/aws/en/tables/features/change-data-feed",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "optimize",
+    "title": "Optimize data file layout",
+    "url": "https://docs.databricks.com/aws/en/tables/operations/optimize",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "skipping",
+    "title": "Data skipping",
+    "url": "https://docs.databricks.com/aws/en/tables/data-skipping",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "cache",
+    "title": "Optimize performance with caching on Databricks",
+    "url": "https://docs.databricks.com/aws/en/optimizations/disk-cache",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "aqe",
+    "title": "Adaptive query execution",
+    "url": "https://docs.databricks.com/aws/en/optimizations/aqe",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "abac",
+    "title": "Attribute-based access control in Unity Catalog",
+    "url": "https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "masks",
+    "title": "Row filters and column masks",
+    "url": "https://docs.databricks.com/aws/en/data-governance/unity-catalog/filters-and-masks/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "acls",
+    "title": "Access control lists",
+    "url": "https://docs.databricks.com/aws/en/security/auth/access-control/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "vacuum",
+    "title": "Remove unused data files with vacuum",
+    "url": "https://docs.databricks.com/aws/en/tables/operations/vacuum",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "privileges",
+    "title": "Unity Catalog privileges reference",
+    "url": "https://docs.databricks.com/aws/en/data-governance/unity-catalog/access-control/privileges-reference",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "tags",
+    "title": "Apply tags to Unity Catalog securable objects",
+    "url": "https://docs.databricks.com/aws/en/database-objects/tags",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "lineage",
+    "title": "Lineage in Unity Catalog",
+    "url": "https://docs.databricks.com/aws/en/data-governance/unity-catalog/data-lineage",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "repair",
+    "title": "Troubleshoot and repair job failures",
+    "url": "https://docs.databricks.com/aws/en/jobs/repair-job-failures",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "notifications",
+    "title": "Add notifications on a job",
+    "url": "https://docs.databricks.com/aws/en/jobs/notifications",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "bundles",
+    "title": "What are Declarative Automation Bundles?",
+    "url": "https://docs.databricks.com/aws/en/dev-tools/bundles/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "modes",
+    "title": "Declarative Automation Bundles deployment modes",
+    "url": "https://docs.databricks.com/aws/en/dev-tools/bundles/deployment-modes",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "cicd",
+    "title": "CI/CD on Databricks",
+    "url": "https://docs.databricks.com/aws/en/dev-tools/ci-cd/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "oauth",
+    "title": "Authorize service principal access to Databricks with OAuth",
+    "url": "https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "medallion",
+    "title": "What is the medallion lakehouse architecture?",
+    "url": "https://docs.databricks.com/aws/en/lakehouse/medallion",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "metrics",
+    "title": "Unity Catalog metric views",
+    "url": "https://docs.databricks.com/aws/en/uc-semantics/metric-views",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "kafka",
+    "title": "Connect to Apache Kafka",
+    "url": "https://docs.databricks.com/aws/en/connect/streaming/kafka/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "abac-requirements",
+    "title": "Requirements, quotas, and limitations for row filter and column mask policies",
+    "url": "https://docs.databricks.com/aws/en/data-governance/unity-catalog/abac/requirements",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "metric-model",
+    "title": "Model metric views",
+    "url": "https://docs.databricks.com/aws/en/uc-semantics/metric-views/basic-modeling",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "testing-api",
+    "title": "Testing \u2014 PySpark 4.2.0 documentation",
+    "url": "https://spark.apache.org/docs/latest/api/python/reference/pyspark.testing.html",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "transform",
+    "title": "pyspark.sql.DataFrame.transform \u2014 PySpark 4.2.0 documentation",
+    "url": "https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.transform.html",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "serverless-jobs",
+    "title": "Run your Lakeflow Jobs with serverless compute for workflows",
+    "url": "https://docs.databricks.com/aws/en/jobs/run-serverless-jobs",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "managed",
+    "title": "Unity Catalog managed tables for Delta Lake and Apache Iceberg",
+    "url": "https://docs.databricks.com/aws/en/tables/managed",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "postgres",
+    "title": "PostgreSQL ingestion connector",
+    "url": "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/postgresql",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "nulls",
+    "title": "NULL semantics",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-null-semantics",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "try-variant",
+    "title": "try_variant_get function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/try_variant_get",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "variant-explode",
+    "title": "variant_explode table-valued function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/variant_explode",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "triggers",
+    "title": "Configure Structured Streaming trigger intervals",
+    "url": "https://docs.databricks.com/aws/en/structured-streaming/triggers",
+    "reviewedOn": "2026-10-04"
+  }
+]

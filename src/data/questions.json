@@ -1,0 +1,3117 @@
+[
+  {
+    "id": "dep-001",
+    "domain": "code",
+    "objective": "Choose pipeline objects",
+    "prompt": "A reporting dataset must recalculate regional totals when earlier transactions are corrected. Which pipeline object best fits a scheduled refresh?",
+    "options": [
+      "A materialized view",
+      "An append-only streaming table",
+      "A temporary view without persisted results",
+      "A streaming table with skipChangeCommits enabled"
+    ],
+    "correctIndex": 0,
+    "explanation": "A materialized view maintains the result of its defining query when refreshed, including upstream changes. Append-only processing does not revise previously processed rows.",
+    "sources": [
+      "mv"
+    ]
+  },
+  {
+    "id": "dep-002",
+    "domain": "code",
+    "objective": "Choose pipeline objects",
+    "prompt": "An immutable clickstream arrives continuously. The bronze layer must ingest each new event incrementally. Which object is appropriate?",
+    "options": [
+      "A materialized view recomputed by every dashboard query",
+      "A temporary view used as the only durable store",
+      "A dimension table with SCD Type 2 history",
+      "A streaming table"
+    ],
+    "correctIndex": 3,
+    "explanation": "Streaming tables support incremental ingestion of append-only events. A temporary view is not durable, and dimensional history does not address raw event ingestion.",
+    "sources": [
+      "st"
+    ]
+  },
+  {
+    "id": "dep-003",
+    "domain": "code",
+    "objective": "Choose pipeline objects",
+    "prompt": "A team changes a streaming-table expression from lowercase to uppercase. What happens to previously ingested rows without a full refresh?",
+    "options": [
+      "They are deleted as obsolete state",
+      "They are recomputed when a user queries the table",
+      "They retain their previous transformed values",
+      "They are automatically rewritten on the next incremental update"
+    ],
+    "correctIndex": 2,
+    "explanation": "A streaming table processes new source rows incrementally. Changing its transformation affects new rows; reprocessing old rows requires a full refresh.",
+    "sources": [
+      "mv",
+      "st"
+    ]
+  },
+  {
+    "id": "dep-004",
+    "domain": "code",
+    "objective": "Choose pipeline objects",
+    "prompt": "A materialized view uses a transformation that cannot be incrementally maintained. What should the engineer expect during refresh?",
+    "options": [
+      "The definition is always rejected at creation time",
+      "The platform can fully recompute the result to preserve correctness",
+      "The refresh silently omits changed historical rows",
+      "The view automatically becomes a streaming table"
+    ],
+    "correctIndex": 1,
+    "explanation": "Incremental refresh is an optimization, not a universal guarantee. A materialized view can fall back to full recomputation when needed.",
+    "sources": [
+      "mv"
+    ]
+  },
+  {
+    "id": "dep-005",
+    "domain": "code",
+    "objective": "Implement AUTO CDC",
+    "prompt": "Customer change events can arrive out of order. Which AUTO CDC configuration identifies the latest business event for each customer?",
+    "options": [
+      "Specify a sequencing column representing source event order",
+      "Use the cloud file modification timestamp as the primary key",
+      "Sort records only by their ingestion arrival time",
+      "Set the target to append mode and omit sequencing"
+    ],
+    "correctIndex": 0,
+    "explanation": "AUTO CDC uses keys to identify entities and sequence_by to order their changes. Arrival order is unreliable when older events arrive late.",
+    "sources": [
+      "cdc"
+    ],
+    "code": "dp.create_auto_cdc_flow(\n    target=\"customers\", source=\"changes\",\n    keys=[\"customer_id\"], sequence_by=col(\"source_sequence\")\n)"
+  },
+  {
+    "id": "dep-006",
+    "domain": "code",
+    "objective": "Implement AUTO CDC",
+    "prompt": "A current customer dimension should overwrite old address values and retain one current record per customer. Which history setting fits?",
+    "options": [
+      "stored_as_scd_type=2",
+      "Remove keys so every event becomes a new entity",
+      "Use a complete-mode aggregate instead of CDC",
+      "stored_as_scd_type=1"
+    ],
+    "correctIndex": 3,
+    "explanation": "SCD Type 1 retains the current version by overwriting prior attribute values. Type 2 preserves separate historical versions.",
+    "sources": [
+      "cdc"
+    ],
+    "code": "dp.create_auto_cdc_flow(\n    target=\"customers_current\", source=\"changes\",\n    keys=[\"customer_id\"], sequence_by=col(\"seq\"),\n    stored_as_scd_type=____\n)"
+  },
+  {
+    "id": "dep-007",
+    "domain": "code",
+    "objective": "Implement AUTO CDC",
+    "prompt": "Which setting preserves historical product-category changes as separate versions in an AUTO CDC target?",
+    "options": [
+      "sequence_by=None",
+      "ignore_null_updates=True by itself",
+      "stored_as_scd_type=2",
+      "stored_as_scd_type=1"
+    ],
+    "correctIndex": 2,
+    "explanation": "SCD Type 2 maintains historical versions with validity boundaries. Ignoring null updates changes update handling, not the history model.",
+    "sources": [
+      "cdc"
+    ],
+    "code": "dp.create_auto_cdc_flow(\n    target=\"products_history\", source=\"changes\",\n    keys=[\"product_id\"], sequence_by=col(\"seq\"),\n    stored_as_scd_type=____\n)"
+  },
+  {
+    "id": "dep-008",
+    "domain": "code",
+    "objective": "Implement AUTO CDC",
+    "prompt": "Two source changes share a timestamp but have distinct increasing transaction IDs. How can AUTO CDC order them deterministically?",
+    "options": [
+      "Disable sequencing and sort the target afterward",
+      "Use a struct containing timestamp first and transaction ID second as sequence_by",
+      "Use only the timestamp and rely on partition order",
+      "Use the transaction ID as an additional target key"
+    ],
+    "correctIndex": 1,
+    "explanation": "A struct sequencing value compares fields in order, allowing the transaction ID to break timestamp ties without changing the business key.",
+    "sources": [
+      "cdc"
+    ]
+  },
+  {
+    "id": "dep-009",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "A windowed stream aggregation keeps accumulating state for old windows. Which change lets it evict sufficiently old state?",
+    "options": [
+      "Define an event-time watermark with a supported output mode",
+      "Increase only the number of shuffle partitions",
+      "Checkpoint more frequently without an event-time boundary",
+      "Cache the entire input DataFrame"
+    ],
+    "correctIndex": 0,
+    "explanation": "A watermark provides an event-time threshold for state cleanup in supported stateful operations. Partition counts and caching do not define when old state can be discarded.",
+    "sources": [
+      "watermarks"
+    ],
+    "code": "(events.withWatermark(\"event_time\", \"20 minutes\")\n    .groupBy(window(\"event_time\", \"10 minutes\"))\n    .count())"
+  },
+  {
+    "id": "dep-010",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "A stream has a 15-minute watermark. Which interpretation of the lateness guarantee is accurate?",
+    "options": [
+      "Every event older than 15 minutes of wall-clock time is always rejected",
+      "The watermark delays every output row exactly 15 minutes",
+      "The watermark guarantees that all arbitrarily late events are eventually included",
+      "Events within the allowed delay are not dropped for being too late; older events may be dropped"
+    ],
+    "correctIndex": 3,
+    "explanation": "Watermarks are based on observed event time. The delay threshold gives a one-sided lateness guarantee; events beyond it may or may not be processed.",
+    "sources": [
+      "watermarks"
+    ]
+  },
+  {
+    "id": "dep-011",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "A driver fails after several micro-batches. What must be preserved so the same streaming query can restore offsets and state?",
+    "options": [
+      "Only the driver local temporary directory",
+      "A cached copy of the input DataFrame",
+      "Its durable checkpoint directory",
+      "Only its display query name"
+    ],
+    "correctIndex": 2,
+    "explanation": "Checkpoints contain source progress, committed batches, and state-store information. Durable checkpoint storage enables recovery across driver restarts.",
+    "sources": [
+      "checkpoint"
+    ]
+  },
+  {
+    "id": "dep-012",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "Two independent streams write different tables. How should their checkpoints be configured?",
+    "options": [
+      "Omit checkpoints if both targets are Delta tables",
+      "Use a distinct checkpoint location for each query",
+      "Share a checkpoint so the streams coordinate offsets",
+      "Store both checkpoints in the same file as the target data"
+    ],
+    "correctIndex": 1,
+    "explanation": "Each streaming query must have its own checkpoint. Sharing state between independent queries can corrupt or mix their progress information.",
+    "sources": [
+      "checkpoint"
+    ]
+  },
+  {
+    "id": "dep-013",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "A foreachBatch callback sends records to an external API. A batch is retried after a failure. What protects against duplicate side effects?",
+    "options": [
+      "Make the sink operation idempotent using batch or business identifiers",
+      "Assume foreachBatch guarantees exactly-once delivery to every sink",
+      "Delete the checkpoint before retrying",
+      "Increase the micro-batch interval"
+    ],
+    "correctIndex": 0,
+    "explanation": "foreachBatch provides at-least-once execution. Exactly-once effects require sink-specific deduplication or idempotency, often using the batch ID.",
+    "sources": [
+      "foreach"
+    ],
+    "code": "def publish(batch_df, batch_id):\n    send_to_external_service(batch_df, batch_id)\n\nstream.writeStream.foreachBatch(publish).start()"
+  },
+  {
+    "id": "dep-014",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "Why use foreachBatch when writing a streaming result through a batch-only connector?",
+    "options": [
+      "It turns each row into a separate driver process",
+      "It removes the need to reason about retries",
+      "It makes every custom sink transactional automatically",
+      "It exposes each micro-batch as a batch DataFrame to the callback"
+    ],
+    "correctIndex": 3,
+    "explanation": "foreachBatch allows batch DataFrame APIs inside a streaming callback. It does not automatically add transactional guarantees to the destination.",
+    "sources": [
+      "foreach"
+    ]
+  },
+  {
+    "id": "dep-015",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "A daily job should process the currently available backlog, using multiple bounded micro-batches if needed, then stop. Which trigger fits?",
+    "options": [
+      "trigger(continuous=\"1 second\")",
+      "Omit the trigger so the query terminates when idle",
+      "trigger(availableNow=True)",
+      "trigger(processingTime=\"1 day\")"
+    ],
+    "correctIndex": 2,
+    "explanation": "AvailableNow drains the data available when the query starts and terminates. It can split the backlog into micro-batches according to source rate limits.",
+    "sources": [
+      "triggers"
+    ],
+    "code": "query = df.writeStream.option(\"checkpointLocation\", checkpoint)\n# Choose the trigger before toTable(\"bronze.events\")."
+  },
+  {
+    "id": "dep-016",
+    "domain": "code",
+    "objective": "Apply streaming state semantics",
+    "prompt": "A windowed aggregation must emit final results once event-time windows are sufficiently complete. Which mode fits with a watermark?",
+    "options": [
+      "Overwrite mode on the streaming DataFrame",
+      "Append mode for finalized windows",
+      "Complete mode to evict all emitted windows immediately",
+      "Append mode without any watermark"
+    ],
+    "correctIndex": 1,
+    "explanation": "For a watermark-supported windowed aggregation, append mode emits final window results once the watermark passes the window boundary.",
+    "sources": [
+      "watermarks"
+    ]
+  },
+  {
+    "id": "dep-017",
+    "domain": "code",
+    "objective": "Develop UDFs",
+    "prompt": "A vectorizable custom Python transformation handles large numeric columns. Which UDF approach reduces per-row Python serialization overhead?",
+    "options": [
+      "A Pandas UDF that processes Arrow-backed batches",
+      "A scalar Python UDF called separately for every element",
+      "A Python loop over DataFrame.collect() on the driver",
+      "A SQL view that calls the driver loop"
+    ],
+    "correctIndex": 0,
+    "explanation": "Pandas UDFs use Arrow to transfer batches and vectorized Pandas operations. Collecting all data to the driver defeats distributed processing.",
+    "sources": [
+      "pandas"
+    ]
+  },
+  {
+    "id": "dep-018",
+    "domain": "code",
+    "objective": "Develop UDFs",
+    "prompt": "A scalar Pandas UDF receives a Pandas Series with 800 elements. How many output elements must it return?",
+    "options": [
+      "One aggregated value for the whole Spark partition",
+      "Any number if the return type is STRING",
+      "Exactly the number of executor cores",
+      "800, one result for each input row"
+    ],
+    "correctIndex": 3,
+    "explanation": "A scalar Pandas UDF must produce a Series of the same length as its input batch. Aggregated or variable-length output requires a different API.",
+    "sources": [
+      "pandas"
+    ],
+    "code": "@pandas_udf(\"double\")\ndef scale(values: pd.Series) -> pd.Series:\n    return values * 1.25"
+  },
+  {
+    "id": "dep-019",
+    "domain": "code",
+    "objective": "Develop UDFs",
+    "prompt": "A normalization function must be reusable across sessions and governed with Unity Catalog permissions. What should the team create?",
+    "options": [
+      "A notebook-local lambda without registration",
+      "A temporary view with the function body in a comment",
+      "A named Unity Catalog SQL or Python function",
+      "Only a session-scoped spark.udf.register function"
+    ],
+    "correctIndex": 2,
+    "explanation": "Unity Catalog functions are persistent securable objects. Session-scoped registrations and notebook variables do not provide shared catalog governance.",
+    "sources": [
+      "uc-udf"
+    ]
+  },
+  {
+    "id": "dep-020",
+    "domain": "code",
+    "objective": "Develop UDFs",
+    "prompt": "Which combination permits invoking a Unity Catalog function in a schema the user can access?",
+    "options": [
+      "Ownership of the entire metastore",
+      "USE CATALOG, USE SCHEMA, and EXECUTE on the function",
+      "SELECT on the function and no usage privileges",
+      "CREATE TABLE on every referencing schema"
+    ],
+    "correctIndex": 1,
+    "explanation": "Function execution uses EXECUTE with the relevant catalog and schema usage privileges. Reading tables and creating tables are different operations.",
+    "sources": [
+      "uc-udf"
+    ]
+  },
+  {
+    "id": "dep-021",
+    "domain": "code",
+    "objective": "Manage dependencies",
+    "prompt": "A serverless notebook needs a third-party Python package. Where should its notebook-scoped dependencies be configured?",
+    "options": [
+      "In the serverless Environment pane",
+      "In a cluster-scoped init script",
+      "In a classic compute policy for that notebook",
+      "By replacing the preinstalled PySpark distribution"
+    ],
+    "correctIndex": 0,
+    "explanation": "Serverless notebooks manage custom dependencies through their environment settings. Classic compute init scripts and compute policies are not the dependency mechanism.",
+    "sources": [
+      "serverless-env"
+    ]
+  },
+  {
+    "id": "dep-022",
+    "domain": "code",
+    "objective": "Manage dependencies",
+    "prompt": "A new custom wheel build has the same package version as the previous build. Serverless jobs keep using cached behavior. What should the engineer do?",
+    "options": [
+      "Change only the notebook title",
+      "Install another copy of PySpark to invalidate the cache",
+      "Remove the job run-as identity",
+      "Publish the changed wheel with an updated version and update the dependency reference"
+    ],
+    "correctIndex": 3,
+    "explanation": "Serverless caches environments and dependencies. Changed custom package implementations should use a new version so jobs can resolve the updated package.",
+    "sources": [
+      "serverless-env"
+    ]
+  },
+  {
+    "id": "dep-023",
+    "domain": "code",
+    "objective": "Manage dependencies",
+    "prompt": "A package installs successfully on one serverless run but fails on another CPU architecture. What is the best packaging correction?",
+    "options": [
+      "Add a cluster init script to force an architecture",
+      "Install PySpark locally inside the serverless environment",
+      "Provide dependencies compatible with every architecture serverless can use",
+      "Pin the notebook filename to an architecture-specific suffix"
+    ],
+    "correctIndex": 2,
+    "explanation": "Serverless can use aarch64 or x86_64. Native dependencies must support the architectures on which the workload may run.",
+    "sources": [
+      "serverless-env"
+    ]
+  },
+  {
+    "id": "dep-024",
+    "domain": "code",
+    "objective": "Manage dependencies",
+    "prompt": "A team wants reusable application code deployable as a Python wheel through a bundle. What belongs in source control?",
+    "options": [
+      "A hand-maintained wheel copied separately to every environment",
+      "The package sources, build metadata, and bundle artifact/resource definitions",
+      "Only an installed copy from the cluster site-packages directory",
+      "Only notebook outputs produced by the last successful run"
+    ],
+    "correctIndex": 1,
+    "explanation": "A bundle can build and deploy a wheel from versioned source and metadata. Keeping build and resource definitions with the code makes deployments repeatable.",
+    "sources": [
+      "wheel"
+    ]
+  },
+  {
+    "id": "dep-025",
+    "domain": "code",
+    "objective": "Structure Python projects",
+    "prompt": "The same ETL project deploys to dev and prod with different workspace hosts. Where should those differences be defined?",
+    "options": [
+      "In bundle targets with environment-specific overrides",
+      "In duplicate unversioned copies of every notebook",
+      "In branching logic that rewrites source files during each run",
+      "In user-specific notebook outputs"
+    ],
+    "correctIndex": 0,
+    "explanation": "Bundle targets override configuration for named environments while sharing resource and source definitions.",
+    "sources": [
+      "bundle-settings"
+    ]
+  },
+  {
+    "id": "dep-026",
+    "domain": "code",
+    "objective": "Structure Python projects",
+    "prompt": "A bundle has many job definitions in separate YAML files. How should its root configuration load them?",
+    "options": [
+      "Import YAML through a notebook magic command",
+      "Register every YAML file as a SQL function",
+      "Copy all definitions into a generated cluster log",
+      "Use the include mapping in databricks.yml"
+    ],
+    "correctIndex": 3,
+    "explanation": "The bundle include setting incorporates additional configuration files, allowing resource definitions to remain modular and versioned.",
+    "sources": [
+      "bundle-settings"
+    ]
+  },
+  {
+    "id": "dep-027",
+    "domain": "code",
+    "objective": "Test transformations",
+    "prompt": "A unit test must compare two PySpark DataFrames, including their row values. Which testing helper fits?",
+    "options": [
+      "DataFrame.explain",
+      "DataFrame.printSchema",
+      "assertDataFrameEqual",
+      "assertSchemaEqual by itself"
+    ],
+    "correctIndex": 2,
+    "explanation": "assertDataFrameEqual validates DataFrame content. Schema comparison alone cannot detect wrong values.",
+    "sources": [
+      "testing-api"
+    ],
+    "code": "from pyspark.testing import assertDataFrameEqual\nassertDataFrameEqual(actual, expected)"
+  },
+  {
+    "id": "dep-028",
+    "domain": "code",
+    "objective": "Test transformations",
+    "prompt": "A transformation accidentally changes a field from INTEGER to STRING. Which focused assertion detects a schema mismatch?",
+    "options": [
+      "Run show() without assertions",
+      "assertSchemaEqual on the actual and expected schemas",
+      "Compare only DataFrame.count()",
+      "Check that both DataFrames have the same column names"
+    ],
+    "correctIndex": 1,
+    "explanation": "assertSchemaEqual compares schemas rather than only row counts or names. A type mismatch can occur even when the same rows and column names are present.",
+    "sources": [
+      "testing-api"
+    ],
+    "code": "from pyspark.testing import assertSchemaEqual\nassertSchemaEqual(actual.schema, expected.schema)"
+  },
+  {
+    "id": "dep-029",
+    "domain": "code",
+    "objective": "Test transformations",
+    "prompt": "Why write an ETL step as a function accepting and returning a DataFrame and apply it with transform?",
+    "options": [
+      "It composes a reusable transformation that can be tested with small DataFrames",
+      "It forces the DataFrame to be collected to the driver",
+      "It commits the output to Delta automatically",
+      "It turns a batch DataFrame into a streaming source"
+    ],
+    "correctIndex": 0,
+    "explanation": "DataFrame.transform applies a function returning a DataFrame, supporting modular transformation composition without requiring a write or collect.",
+    "sources": [
+      "transform"
+    ],
+    "code": "def normalize(df):\n    return df.withColumn(\"country\", upper(col(\"country\")))\n\nclean = raw.transform(normalize)"
+  },
+  {
+    "id": "dep-030",
+    "domain": "code",
+    "objective": "Test transformations",
+    "prompt": "A normalization helper passes its unit tests. What additional check best validates the deployed ingestion pipeline?",
+    "options": [
+      "A second test checking only the helper function name",
+      "Counting the number of notebooks in the repository",
+      "Rebuilding the same wheel without exercising a pipeline",
+      "An integration test that reads representative source data and verifies the target output"
+    ],
+    "correctIndex": 3,
+    "explanation": "Unit tests isolate transformation logic. Integration tests validate connections, dependencies, and end-to-end behavior in a representative environment.",
+    "sources": [
+      "testing"
+    ]
+  },
+  {
+    "id": "dep-031",
+    "domain": "code",
+    "objective": "Orchestrate workloads",
+    "prompt": "A validation task publishes invalid_count. A cleanup task should run only when that count exceeds zero. Which job task fits?",
+    "options": [
+      "A second schedule with the same start time",
+      "A shared compute definition without task dependencies",
+      "An If/else condition referencing the validation task value",
+      "A For each task with a fixed empty array"
+    ],
+    "correctIndex": 2,
+    "explanation": "An If/else task evaluates an expression and branches the job graph. Referencing task values connects the branch to the validation result.",
+    "sources": [
+      "if-else"
+    ]
+  },
+  {
+    "id": "dep-032",
+    "domain": "code",
+    "objective": "Orchestrate workloads",
+    "prompt": "A job must run the same ingestion task for each table in a supplied list. What should the engineer use?",
+    "options": [
+      "A cluster restart for each configured table",
+      "A For each task with a nested ingestion task",
+      "An If/else task for every row in each table",
+      "A materialized view used as a job scheduler"
+    ],
+    "correctIndex": 1,
+    "explanation": "For each executes a nested task for each input value. Its input list and concurrency settings support repeated task execution without duplicating definitions.",
+    "sources": [
+      "for-each"
+    ]
+  },
+  {
+    "id": "dep-033",
+    "domain": "code",
+    "objective": "Orchestrate workloads",
+    "prompt": "A notebook produces a storage path that downstream job tasks must use. Which mechanism passes a small value between tasks?",
+    "options": [
+      "dbutils.jobs.taskValues.set and a task-value reference",
+      "A global Python variable on the first notebook driver",
+      "A temporary SQL view assumed to exist across all task sessions",
+      "A display() output parsed from the notebook HTML"
+    ],
+    "correctIndex": 0,
+    "explanation": "Job task values communicate small JSON-compatible values through the job run. Notebook-local variables and temporary views do not provide a general cross-task interface.",
+    "sources": [
+      "task-values"
+    ],
+    "code": "dbutils.jobs.taskValues.set(key=\"output_path\", value=path)"
+  },
+  {
+    "id": "dep-034",
+    "domain": "code",
+    "objective": "Orchestrate workloads",
+    "prompt": "A final cleanup task must run after all of its dependencies finish, whether they succeed or fail. Which dependency condition fits?",
+    "options": [
+      "All succeeded",
+      "At least one succeeded",
+      "None failed",
+      "All done"
+    ],
+    "correctIndex": 3,
+    "explanation": "All done permits execution after dependencies complete regardless of their outcome. All succeeded and None failed exclude failure scenarios.",
+    "sources": [
+      "run-if"
+    ]
+  },
+  {
+    "id": "dep-035",
+    "domain": "code",
+    "objective": "Orchestrate workloads",
+    "prompt": "An If/else task compares operands 7.0 and 7 using ==. What behavior should the engineer account for?",
+    "options": [
+      "The task always raises a type error",
+      "The task checks the number of upstream records",
+      "Equality compares their string representations, so these representations differ",
+      "Equality always coerces both operands to floating-point numbers"
+    ],
+    "correctIndex": 2,
+    "explanation": "If/else equality and inequality use string comparison; relational operators such as >= use numeric comparisons. This distinction matters for serialized task values.",
+    "sources": [
+      "if-else"
+    ]
+  },
+  {
+    "id": "dep-036",
+    "domain": "code",
+    "objective": "Choose compute configuration",
+    "prompt": "A non-idempotent serverless notebook task must never be automatically retried by serverless auto-optimization. What setting should be used?",
+    "options": [
+      "Disable Unity Catalog on the workspace",
+      "Disable automatic retries with the task retry policy",
+      "Change its SQL output mode to complete",
+      "Delete its upstream dependencies"
+    ],
+    "correctIndex": 1,
+    "explanation": "Serverless job configuration supports disabling automatic retries. Non-idempotent side effects require deliberate retry behavior rather than assuming failures execute only once.",
+    "sources": [
+      "serverless-jobs"
+    ]
+  },
+  {
+    "id": "dep-037",
+    "domain": "code",
+    "objective": "Choose compute configuration",
+    "prompt": "A serverless notebook has high in-memory Python demand. Which setting directly addresses that workload constraint?",
+    "options": [
+      "Select the supported high-memory environment option",
+      "Increase only a SQL warehouse dashboard refresh interval",
+      "Install a new PySpark package into the environment",
+      "Rename its checkpoint directory"
+    ],
+    "correctIndex": 0,
+    "explanation": "The serverless environment provides notebook memory configuration. Increasing unrelated schedules or replacing platform packages does not address notebook memory requirements.",
+    "sources": [
+      "serverless-env"
+    ]
+  },
+  {
+    "id": "dep-038",
+    "domain": "code",
+    "objective": "Choose pipeline execution",
+    "prompt": "A team prefers declarative datasets, managed orchestration, and built-in pipeline observability over manually managing streaming queries. Which approach fits?",
+    "options": [
+      "A driver-side loop that collects every source row",
+      "A notebook that manually overwrites checkpoints between runs",
+      "A temporary view without a refresh mechanism",
+      "Lakeflow Declarative Pipelines"
+    ],
+    "correctIndex": 3,
+    "explanation": "Lakeflow Declarative Pipelines manages dataset dependencies and processing flows. It reduces the orchestration and observability work required for hand-managed queries.",
+    "sources": [
+      "st",
+      "mv"
+    ]
+  },
+  {
+    "id": "dep-039",
+    "domain": "code",
+    "objective": "Choose pipeline execution",
+    "prompt": "An engineer deletes a streaming query checkpoint to fix a transient failure. What consequence must they anticipate?",
+    "options": [
+      "Only the UI run history is erased",
+      "The target automatically reconstructs every stateful operator checkpoint",
+      "The next run starts fresh rather than restoring the old query progress",
+      "The source offsets are restored from the query name alone"
+    ],
+    "correctIndex": 2,
+    "explanation": "Deleting a checkpoint discards the query recovery state. Starting fresh can reprocess source data and requires considering sink idempotency and replay availability.",
+    "sources": [
+      "checkpoint"
+    ]
+  },
+  {
+    "id": "dep-040",
+    "domain": "code",
+    "objective": "Develop pipeline code",
+    "prompt": "Which Python declaration defines a materialized view whose results are obtained from a batch DataFrame?",
+    "options": [
+      "A streaming write inside a dataset definition",
+      "@dp.materialized_view with a function returning spark.read.table(...)",
+      "@dp.table with a function calling DataFrame.collect()",
+      "A function returning a Python list of rows without a DataFrame"
+    ],
+    "correctIndex": 1,
+    "explanation": "The materialized_view decorator declares a dataset query from a returned batch DataFrame. Dataset definitions should express transformations rather than perform imperative writes.",
+    "sources": [
+      "mv"
+    ],
+    "code": "from pyspark import pipelines as dp\n\n@dp.materialized_view\ndef country_totals():\n    return spark.read.table(\"orders\").groupBy(\"country\").sum(\"amount\")"
+  },
+  {
+    "id": "dep-041",
+    "domain": "ingestion",
+    "objective": "Ingest cloud files",
+    "prompt": "Millions of JSON files arrive in object storage. The team needs incremental discovery with fault recovery. Which ingestion mechanism fits?",
+    "options": [
+      "Auto Loader",
+      "A full recursive batch read followed by overwrite on every run",
+      "A temporary view that lists filenames",
+      "A materialized view over a local driver directory"
+    ],
+    "correctIndex": 0,
+    "explanation": "Auto Loader incrementally discovers cloud files and integrates with Structured Streaming checkpointing. Re-reading the entire landing area increases work and complicates replay.",
+    "sources": [
+      "autoloader"
+    ]
+  },
+  {
+    "id": "dep-042",
+    "domain": "ingestion",
+    "objective": "Ingest cloud files",
+    "prompt": "Which read format identifies Auto Loader rather than the ordinary Spark JSON file source?",
+    "options": [
+      "deltaSharing",
+      "jsonStream",
+      "autoloader",
+      "cloudFiles"
+    ],
+    "correctIndex": 3,
+    "explanation": "Auto Loader uses the cloudFiles source with cloudFiles.format identifying the file format. The source name and the file format serve different purposes.",
+    "sources": [
+      "autoloader"
+    ],
+    "code": "spark.readStream.format(____).option(\"cloudFiles.format\", \"json\").load(landing)"
+  },
+  {
+    "id": "dep-043",
+    "domain": "ingestion",
+    "objective": "Manage ingestion schemas",
+    "prompt": "Auto Loader infers a schema for JSON without inferColumnTypes enabled. What type does it generally assign to ordinary JSON fields?",
+    "options": [
+      "VARIANT for every field automatically",
+      "BINARY for each JSON value",
+      "STRING, including nested JSON fields",
+      "Always the narrowest numeric type inferred from samples"
+    ],
+    "correctIndex": 2,
+    "explanation": "For formats without encoded types, Auto Loader defaults to strings to avoid type conflicts. inferColumnTypes enables sample-based type inference.",
+    "sources": [
+      "autoloader-schema"
+    ]
+  },
+  {
+    "id": "dep-044",
+    "domain": "ingestion",
+    "objective": "Manage ingestion schemas",
+    "prompt": "Which option stores the evolution history of an inferred Auto Loader source schema?",
+    "options": [
+      "cloudFiles.partitionLocation",
+      "cloudFiles.schemaLocation",
+      "checkpointFileName",
+      "delta.schemaHistory"
+    ],
+    "correctIndex": 1,
+    "explanation": "schemaLocation stores source-schema information. A streaming checkpoint tracks query progress and state; both have distinct responsibilities even when configured under the same root path.",
+    "sources": [
+      "autoloader-schema"
+    ],
+    "code": "reader = (spark.readStream.format(\"cloudFiles\")\n    .option(\"cloudFiles.format\", \"json\")\n    .option(\"cloudFiles.schemaLocation\", schema_path))\n\n# Write query progress to checkpoint_path:\nreader.load(landing).writeStream.option(\"checkpointLocation\", checkpoint_path)"
+  },
+  {
+    "id": "dep-045",
+    "domain": "ingestion",
+    "objective": "Manage ingestion schemas",
+    "prompt": "In addNewColumns mode, a new source column appears. What is the expected workflow?",
+    "options": [
+      "Auto Loader updates its stored schema, stops with an error, and uses the new schema after restart",
+      "It silently drops the new column and never records it",
+      "It reprocesses all historical files automatically before continuing",
+      "It changes every existing column to VARIANT"
+    ],
+    "correctIndex": 0,
+    "explanation": "addNewColumns evolves the inferred schema and requires a restart after detecting a new column. Job orchestration can handle the restart.",
+    "sources": [
+      "autoloader-schema"
+    ],
+    "code": "reader = (spark.readStream.format(\"cloudFiles\")\n    .option(\"cloudFiles.format\", \"json\")\n    .option(\"cloudFiles.schemaEvolutionMode\", \"addNewColumns\"))"
+  },
+  {
+    "id": "dep-046",
+    "domain": "ingestion",
+    "objective": "Manage ingestion schemas",
+    "prompt": "A field contains a value inconsistent with the expected source type. How can the pipeline preserve that unexpected content for diagnosis?",
+    "options": [
+      "Disable all checkpointing so the file is always reread",
+      "Overwrite the destination schema with a single STRING column",
+      "Set a watermark on the file name",
+      "Retain the rescued data column and examine its JSON payload"
+    ],
+    "correctIndex": 3,
+    "explanation": "The rescued data column captures data that cannot be parsed into the expected schema, including type mismatches, alongside source-file context.",
+    "sources": [
+      "autoloader-schema"
+    ]
+  },
+  {
+    "id": "dep-047",
+    "domain": "ingestion",
+    "objective": "Manage ingestion schemas",
+    "prompt": "A pipeline must keep ingesting when unexpected columns appear while retaining them without changing the declared schema. Which evolution mode fits?",
+    "options": [
+      "failOnNewColumns",
+      "none without a rescued data column",
+      "rescue",
+      "addNewColumns"
+    ],
+    "correctIndex": 2,
+    "explanation": "Rescue mode preserves unexpected content in the rescued data column without evolving the schema. A strict-failure mode does not keep ingestion running.",
+    "sources": [
+      "autoloader-schema"
+    ]
+  },
+  {
+    "id": "dep-048",
+    "domain": "ingestion",
+    "objective": "Choose ingestion tools",
+    "prompt": "A small set of files arrives daily and a SQL-only team wants retryable incremental batch ingestion. Which command fits?",
+    "options": [
+      "CREATE SHARE with a file glob",
+      "COPY INTO",
+      "INSERT OVERWRITE from a full recursive read each day",
+      "VACUUM the source folder"
+    ],
+    "correctIndex": 1,
+    "explanation": "COPY INTO loads files incrementally and tracks previously loaded files, making reruns idempotent unless its force behavior is explicitly changed.",
+    "sources": [
+      "copy-into"
+    ]
+  },
+  {
+    "id": "dep-049",
+    "domain": "ingestion",
+    "objective": "Choose ingestion tools",
+    "prompt": "A successful COPY INTO statement is rerun with the same source files and default behavior. What should happen?",
+    "options": [
+      "Previously loaded files are skipped",
+      "All previous rows are duplicated",
+      "The target table is automatically truncated",
+      "Every old source file is deleted"
+    ],
+    "correctIndex": 0,
+    "explanation": "COPY INTO tracks loaded files and normally skips them on repeated executions. The force option can intentionally override that behavior.",
+    "sources": [
+      "copy-into"
+    ]
+  },
+  {
+    "id": "dep-050",
+    "domain": "ingestion",
+    "objective": "Ingest message buses",
+    "prompt": "Kafka records arrive with JSON text encoded in their value column. What should follow a streaming Kafka read before writing structured fields?",
+    "options": [
+      "Treat value as an already parsed Spark struct",
+      "Use the topic name as the JSON schema",
+      "Convert Kafka offsets to Delta column names",
+      "Cast value from binary to string and parse the JSON with the expected schema"
+    ],
+    "correctIndex": 3,
+    "explanation": "The Kafka source exposes key and value as binary. JSON payloads require decoding and parsing before their fields can be transformed.",
+    "sources": [
+      "kafka"
+    ]
+  },
+  {
+    "id": "dep-051",
+    "domain": "ingestion",
+    "objective": "Ingest message buses",
+    "prompt": "A Kafka query restarts using its existing checkpoint. What controls its resumed source position?",
+    "options": [
+      "The alphabetical order of topic names",
+      "The destination table sort order",
+      "The offsets recorded in the checkpoint",
+      "A newly edited startingOffsets option on every restart"
+    ],
+    "correctIndex": 2,
+    "explanation": "startingOffsets determines a new query start. An existing checkpoint restores recorded offsets when the query resumes.",
+    "sources": [
+      "kafka"
+    ]
+  },
+  {
+    "id": "dep-052",
+    "domain": "ingestion",
+    "objective": "Ingest message buses",
+    "prompt": "An engineer wants to subscribe a streaming reader to one named Kafka topic. Which option serves that purpose?",
+    "options": [
+      "schemaLocation",
+      "subscribe",
+      "cloudFiles.format",
+      "readChangeFeed"
+    ],
+    "correctIndex": 1,
+    "explanation": "subscribe selects Kafka topics for the source. File-source and Delta CDF settings are separate ingestion mechanisms.",
+    "sources": [
+      "kafka"
+    ],
+    "code": "(spark.readStream.format(\"kafka\")\n    .option(\"kafka.bootstrap.servers\", brokers)\n    .option(____, \"shipment_events\")\n    .load())"
+  },
+  {
+    "id": "dep-053",
+    "domain": "ingestion",
+    "objective": "Configure managed CDC ingestion",
+    "prompt": "The team must replicate relational inserts, updates, and deletes with minimal connector code. Which managed service fits?",
+    "options": [
+      "Lakeflow Connect",
+      "A nightly full-table JDBC overwrite alone",
+      "OpenSharing as a relational replication daemon",
+      "An hourly CSV export with no delete markers"
+    ],
+    "correctIndex": 0,
+    "explanation": "Lakeflow Connect offers managed ingestion connectors and incremental replication. Full snapshots and plain file exports do not independently provide continuous delete/update capture.",
+    "sources": [
+      "connect"
+    ]
+  },
+  {
+    "id": "dep-054",
+    "domain": "ingestion",
+    "objective": "Configure managed CDC ingestion",
+    "prompt": "Why might a team prefer managed Lakeflow Connect database ingestion over a custom JDBC polling loop?",
+    "options": [
+      "It removes all source-database configuration requirements",
+      "It guarantees that every connector is available on every cloud and region",
+      "It turns every source database into a SQL warehouse",
+      "It manages connector ingestion and change capture with platform orchestration and governance"
+    ],
+    "correctIndex": 3,
+    "explanation": "Managed connectors reduce custom ingestion operations. Source configuration and feature availability still need to be checked for the chosen connector.",
+    "sources": [
+      "connect"
+    ]
+  },
+  {
+    "id": "dep-055",
+    "domain": "ingestion",
+    "objective": "Configure managed CDC ingestion",
+    "prompt": "A supported PostgreSQL connector is being configured. What must the source database have prepared first?",
+    "options": [
+      "A Delta transaction log inside the PostgreSQL data directory",
+      "A SQL warehouse with the same name as the source database",
+      "Logical replication, an appropriate replication user, publications, and replication slots",
+      "Only a view in the target Unity Catalog schema"
+    ],
+    "correctIndex": 2,
+    "explanation": "The PostgreSQL connector requires source-side logical replication setup before the ingestion pipeline can capture changes. Its documented availability is Public Preview.",
+    "sources": [
+      "postgres"
+    ]
+  },
+  {
+    "id": "dep-056",
+    "domain": "ingestion",
+    "objective": "Configure CDC targets",
+    "prompt": "An incremental pipeline writes to a supported Unity Catalog managed Iceberg target. Which design decision remains necessary?",
+    "options": [
+      "Replace all source delete events with append-only inserts",
+      "Choose a supported target format and pipeline configuration for the required CDC behavior",
+      "Assume a target-format change removes the need for primary keys and sequencing",
+      "Store the Iceberg metadata only on the notebook driver"
+    ],
+    "correctIndex": 1,
+    "explanation": "Target table format does not remove CDC semantics. Entity keys, change ordering, and supported pipeline capabilities still determine correct replication.",
+    "sources": [
+      "managed",
+      "cdc"
+    ]
+  },
+  {
+    "id": "dep-057",
+    "domain": "ingestion",
+    "objective": "Share live data",
+    "prompt": "A partner uses another Databricks account with Unity Catalog. Which sharing approach avoids distributing bearer-token credential files to that recipient?",
+    "options": [
+      "Databricks-to-Databricks sharing",
+      "Open sharing using a downloaded bearer-token profile",
+      "Periodic CSV copies sent through the driver",
+      "Sharing a workspace personal access token"
+    ],
+    "correctIndex": 0,
+    "explanation": "Databricks-to-Databricks sharing uses platform-to-platform identity rather than open-recipient token profiles. OpenSharing is the current documentation name for Delta Sharing.",
+    "sources": [
+      "sharing"
+    ]
+  },
+  {
+    "id": "dep-058",
+    "domain": "ingestion",
+    "objective": "Share live data",
+    "prompt": "An external partner does not use Databricks but has a compatible sharing client. Which approach is appropriate?",
+    "options": [
+      "Require the partner to attach compute to the provider workspace",
+      "Grant the partner ownership of the provider metastore",
+      "Use only a Databricks-to-Databricks recipient identity",
+      "Open sharing through the supported open protocol"
+    ],
+    "correctIndex": 3,
+    "explanation": "Open sharing supports compatible external clients. The partner does not need a Databricks workspace attached to the provider metastore.",
+    "sources": [
+      "sharing"
+    ]
+  },
+  {
+    "id": "dep-059",
+    "domain": "ingestion",
+    "objective": "Share live data",
+    "prompt": "What does a share represent in the sharing object model?",
+    "options": [
+      "A checkpoint directory shared by independent streams",
+      "A catalog privilege that automatically grants object ownership",
+      "A named collection of data assets made available to recipients",
+      "A compute cluster allocated to every external user"
+    ],
+    "correctIndex": 2,
+    "explanation": "A share groups provider data assets for recipient access. It is separate from compute and does not transfer ownership of the underlying source objects.",
+    "sources": [
+      "sharing"
+    ]
+  },
+  {
+    "id": "dep-060",
+    "domain": "ingestion",
+    "objective": "Share live data",
+    "prompt": "A provider must stop a recipient from accessing a shared dataset. Which control should be changed?",
+    "options": [
+      "The provider notebook display configuration",
+      "The recipient grants on the share",
+      "The provider query-profile color settings",
+      "The recipient local Spark shuffle partition count"
+    ],
+    "correctIndex": 1,
+    "explanation": "Sharing access is controlled through recipients and share grants. Revoking that access prevents continued authorized reads through the sharing interface.",
+    "sources": [
+      "sharing"
+    ]
+  },
+  {
+    "id": "dep-061",
+    "domain": "ingestion",
+    "objective": "Configure federation",
+    "prompt": "Analysts need governed SQL access to an external database without copying its tables into the lakehouse. Which feature fits?",
+    "options": [
+      "Lakehouse Federation",
+      "Auto Loader on the external database host",
+      "A daily ingestion job writing a managed replica",
+      "A Delta table deep clone of a remote JDBC URL"
+    ],
+    "correctIndex": 0,
+    "explanation": "Federation queries external data through Unity Catalog connections and foreign catalogs. Managed ingestion instead copies source data into lakehouse tables.",
+    "sources": [
+      "federation"
+    ]
+  },
+  {
+    "id": "dep-062",
+    "domain": "ingestion",
+    "objective": "Configure federation",
+    "prompt": "Which Unity Catalog object holds connection details for querying an external database?",
+    "options": [
+      "A streaming checkpoint",
+      "A share recipient activation link",
+      "A job task value alone",
+      "A connection"
+    ],
+    "correctIndex": 3,
+    "explanation": "A connection describes access to the external system, including credentials. A foreign catalog exposes its database objects for governed querying.",
+    "sources": [
+      "federation"
+    ]
+  },
+  {
+    "id": "dep-063",
+    "domain": "ingestion",
+    "objective": "Configure federation",
+    "prompt": "A connection exists, but analysts need catalog-level access to its remote database tables. What should be created?",
+    "options": [
+      "A separate classic cluster per remote table",
+      "A Python UDF containing every remote table name",
+      "A foreign catalog backed by the connection",
+      "A local checkpoint for each analyst"
+    ],
+    "correctIndex": 2,
+    "explanation": "A foreign catalog maps external database metadata into Unity Catalog. Access then follows the applicable catalog and table privileges.",
+    "sources": [
+      "federation"
+    ]
+  },
+  {
+    "id": "dep-064",
+    "domain": "ingestion",
+    "objective": "Configure federation",
+    "prompt": "A federated query can push filters to the remote engine. Why is that useful?",
+    "options": [
+      "It ensures the remote database never executes work",
+      "It can reduce remote rows transferred to Databricks",
+      "It converts the remote table permanently to Delta",
+      "It bypasses connection credentials"
+    ],
+    "correctIndex": 1,
+    "explanation": "Pushdown executes supported operations at the source, potentially reducing transferred data. The remote system still performs work and access remains governed.",
+    "sources": [
+      "federation"
+    ]
+  },
+  {
+    "id": "dep-065",
+    "domain": "ingestion",
+    "objective": "Collaborate with Clean Rooms",
+    "prompt": "Two organizations want to run agreed analyses over their data without granting each other unrestricted raw-data access. Which feature fits?",
+    "options": [
+      "Databricks Clean Rooms",
+      "A public share containing both complete raw datasets",
+      "A shared notebook with embedded source credentials",
+      "A common driver filesystem accessible to both teams"
+    ],
+    "correctIndex": 0,
+    "explanation": "Clean Rooms supports controlled collaboration on shared assets using approved workloads and isolated managed compute rather than unrestricted raw access.",
+    "sources": [
+      "cleanrooms"
+    ]
+  },
+  {
+    "id": "dep-066",
+    "domain": "ingestion",
+    "objective": "Collaborate with Clean Rooms",
+    "prompt": "Why use approved notebooks in a Clean Room collaboration?",
+    "options": [
+      "They make all raw source rows visible in every collaborator workspace",
+      "They disable all Unity Catalog governance",
+      "They require collaborators to exchange cloud-account credentials",
+      "They define the allowed analysis while protecting collaborators from unrestricted execution over shared data"
+    ],
+    "correctIndex": 3,
+    "explanation": "Approved computation is part of the controlled collaboration model. It limits what participants can execute over shared assets.",
+    "sources": [
+      "cleanrooms"
+    ]
+  },
+  {
+    "id": "dep-067",
+    "domain": "ingestion",
+    "objective": "Handle mixed batch and streaming inputs",
+    "prompt": "A durable bronze Delta table is read by both batch analytics and a streaming transformation. What should the streaming consumer maintain?",
+    "options": [
+      "A shared checkpoint copied from the producer without changes",
+      "Only a dashboard refresh timestamp",
+      "Its own checkpoint and compatible incremental source semantics",
+      "The batch reader temporary view as its only state store"
+    ],
+    "correctIndex": 2,
+    "explanation": "Delta supports batch and streaming access. Each streaming consumer still needs query-specific progress tracking and must account for whether upstream records are appended or changed.",
+    "sources": [
+      "st",
+      "checkpoint"
+    ]
+  },
+  {
+    "id": "dep-068",
+    "domain": "ingestion",
+    "objective": "Choose ingestion tools",
+    "prompt": "A workload grows from a few daily files to millions of incremental arrivals. Which choice best addresses scalable file discovery?",
+    "options": [
+      "Use VACUUM as a file-discovery operation",
+      "Move the file-ingestion workload to Auto Loader",
+      "Force every COPY INTO run to reload all files",
+      "Collect the full recursive object listing into a Python driver list every minute"
+    ],
+    "correctIndex": 1,
+    "explanation": "Auto Loader is designed for scalable incremental file discovery. Forced full reloads increase duplicate processing and driver bottlenecks.",
+    "sources": [
+      "autoloader",
+      "copy-into"
+    ]
+  },
+  {
+    "id": "dep-069",
+    "domain": "manipulation",
+    "objective": "Apply window functions",
+    "prompt": "Multiple customer records share an ID. Keep the newest per customer and break equal timestamps using a unique event ID. Which query pattern fits?",
+    "options": [
+      "ROW_NUMBER over each customer ordered by timestamp and event ID descending, then keep row 1",
+      "DISTINCT on all columns",
+      "GROUP BY customer without an ordering expression",
+      "RANK by timestamp alone, keeping every row ranked 1"
+    ],
+    "correctIndex": 0,
+    "explanation": "ROW_NUMBER selects one row per partition. A unique tie-breaker makes the selected newest record deterministic.",
+    "sources": [
+      "row-number"
+    ],
+    "code": "ROW_NUMBER() OVER (PARTITION BY customer_id\n  ORDER BY event_ts DESC, event_id DESC) AS rn"
+  },
+  {
+    "id": "dep-070",
+    "domain": "manipulation",
+    "objective": "Apply window functions",
+    "prompt": "A ROW_NUMBER window orders only by a timestamp that has duplicates. What is the main correctness concern?",
+    "options": [
+      "ROW_NUMBER always returns NULL for duplicate timestamps",
+      "The window cannot be partitioned",
+      "Duplicate timestamps force a Cartesian join",
+      "Which tied row gets number 1 is not deterministic"
+    ],
+    "correctIndex": 3,
+    "explanation": "ROW_NUMBER breaks ties, but nonunique ordering does not define a deterministic tie-break. Add a suitable stable secondary ordering column.",
+    "sources": [
+      "row-number"
+    ]
+  },
+  {
+    "id": "dep-071",
+    "domain": "manipulation",
+    "objective": "Apply joins",
+    "prompt": "Return customers who have never placed an order, without duplicating customers. Which join type fits?",
+    "options": [
+      "INNER JOIN from customers to orders",
+      "CROSS JOIN from customers to orders",
+      "LEFT ANTI JOIN from customers to orders",
+      "LEFT SEMI JOIN from customers to orders"
+    ],
+    "correctIndex": 2,
+    "explanation": "A left anti join returns left rows with no matching right row. A semi join returns those that do have a match.",
+    "sources": [
+      "join"
+    ]
+  },
+  {
+    "id": "dep-072",
+    "domain": "manipulation",
+    "objective": "Apply joins",
+    "prompt": "Return customer rows that have at least one matching payment, but no payment columns. Which join fits?",
+    "options": [
+      "LEFT ANTI JOIN",
+      "LEFT SEMI JOIN",
+      "FULL OUTER JOIN",
+      "CROSS JOIN"
+    ],
+    "correctIndex": 1,
+    "explanation": "A semi join keeps matching rows from the left relation only. It avoids introducing right-side columns or multiplying left rows for multiple right matches.",
+    "sources": [
+      "join"
+    ]
+  },
+  {
+    "id": "dep-073",
+    "domain": "manipulation",
+    "objective": "Apply joins",
+    "prompt": "A left join is followed by WHERE right.status = active. What happens to left rows with no match?",
+    "options": [
+      "They are removed because the predicate is not true for the NULL right value",
+      "They remain because all filters preserve left-join rows",
+      "They become active automatically",
+      "They are duplicated once for each right table row"
+    ],
+    "correctIndex": 0,
+    "explanation": "Unmatched right columns are NULL. A WHERE predicate requiring a concrete right value removes those rows; place the predicate in ON to preserve them when appropriate.",
+    "sources": [
+      "join"
+    ]
+  },
+  {
+    "id": "dep-074",
+    "domain": "manipulation",
+    "objective": "Apply joins",
+    "prompt": "A fact table joins a dimension containing duplicate business keys. Totals unexpectedly increase. What should be investigated first?",
+    "options": [
+      "Whether the query uses uppercase SQL keywords",
+      "The driver notebook theme",
+      "The number of column comments on the fact table",
+      "The dimension join-key uniqueness and intended join grain"
+    ],
+    "correctIndex": 3,
+    "explanation": "Multiple dimension rows matching one fact row multiply the join output. Enforce the intended dimension grain or select the correct version before aggregating.",
+    "sources": [
+      "join"
+    ]
+  },
+  {
+    "id": "dep-075",
+    "domain": "manipulation",
+    "objective": "Handle nulls",
+    "prompt": "Which comparison returns TRUE when both expressions are NULL?",
+    "options": [
+      "The inequality operator <>",
+      "The greater-than operator >",
+      "The null-safe equality operator <=>",
+      "The ordinary equality operator ="
+    ],
+    "correctIndex": 2,
+    "explanation": "Ordinary equality with NULL evaluates to unknown. Null-safe equality returns true when both operands are NULL.",
+    "sources": [
+      "nulls"
+    ],
+    "code": "SELECT NULL <=> NULL AS same;"
+  },
+  {
+    "id": "dep-076",
+    "domain": "manipulation",
+    "objective": "Handle nulls",
+    "prompt": "A table has six rows and two NULL values in amount. What do COUNT(*) and COUNT(amount) return?",
+    "options": [
+      "4 and 6",
+      "6 and 4",
+      "4 and 4",
+      "6 and 6"
+    ],
+    "correctIndex": 1,
+    "explanation": "COUNT(*) counts all rows. COUNT(column) skips NULL values in the column.",
+    "sources": [
+      "nulls"
+    ]
+  },
+  {
+    "id": "dep-077",
+    "domain": "manipulation",
+    "objective": "Handle malformed values",
+    "prompt": "Some price strings contain malformed numbers. Keep the rows and mark those conversions NULL instead of aborting supported string-to-number casts. Which expression fits?",
+    "options": [
+      "TRY_CAST(price AS DECIMAL(10,2))",
+      "CAST(price AS DECIMAL(10,2)) with ANSI behavior",
+      "COUNT(price)",
+      "price IS NOT NULL"
+    ],
+    "correctIndex": 0,
+    "explanation": "TRY_CAST returns NULL for malformed input or out-of-range values when the source/target cast itself is supported. CAST can fail for malformed values.",
+    "sources": [
+      "try-cast"
+    ],
+    "code": "SELECT TRY_CAST(raw_price AS DECIMAL(10,2)) AS price\nFROM bronze.products;"
+  },
+  {
+    "id": "dep-078",
+    "domain": "manipulation",
+    "objective": "Handle malformed values",
+    "prompt": "TRY_CAST produces NULL for invalid strings. What is a sound quality step before publishing clean metrics?",
+    "options": [
+      "Replace all invalid values with zero without tracking them",
+      "Drop the source string before diagnostics",
+      "Assume NULL means the source price was genuinely absent",
+      "Separate or flag invalid non-NULL inputs rather than silently treating every NULL as zero"
+    ],
+    "correctIndex": 3,
+    "explanation": "Invalid conversions and genuinely missing inputs are different conditions. Keeping the original input or an error flag supports quarantine and avoids silently corrupting aggregates.",
+    "sources": [
+      "try-cast",
+      "nulls"
+    ]
+  },
+  {
+    "id": "dep-079",
+    "domain": "manipulation",
+    "objective": "Model semi-structured data",
+    "prompt": "A JSON payload changes shape frequently. Which expression parses it into a flexible VARIANT value?",
+    "options": [
+      "COUNT(payload)",
+      "ROW_NUMBER() OVER (ORDER BY payload)",
+      "parse_json(payload)",
+      "CAST(payload AS BINARY)"
+    ],
+    "correctIndex": 2,
+    "explanation": "parse_json parses JSON text into VARIANT, enabling field access without defining one fixed STRUCT schema.",
+    "sources": [
+      "parse-json"
+    ],
+    "code": "SELECT parse_json(payload) AS document\nFROM bronze.webhooks;"
+  },
+  {
+    "id": "dep-080",
+    "domain": "manipulation",
+    "objective": "Query semi-structured data",
+    "prompt": "What does this expression return?",
+    "options": [
+      "NULL because the key is present",
+      "The integer 23",
+      "The string $.units",
+      "An array containing 23"
+    ],
+    "correctIndex": 1,
+    "explanation": "variant_get extracts the value at a JSON path and casts it to the requested type. The units value can be represented as INT.",
+    "sources": [
+      "variant-get"
+    ],
+    "code": "SELECT variant_get(parse_json('{\"units\":23}'), '$.units', 'int');"
+  },
+  {
+    "id": "dep-081",
+    "domain": "manipulation",
+    "objective": "Query semi-structured data",
+    "prompt": "variant_get cannot cast an existing object to the requested type. What is its documented behavior?",
+    "options": [
+      "It raises an invalid-variant-cast error",
+      "It always returns the original object as STRING",
+      "It silently returns zero",
+      "It drops the entire source table"
+    ],
+    "correctIndex": 0,
+    "explanation": "variant_get returns NULL for a missing path but errors for an invalid cast of a found value. Use try_variant_get when invalid casts should become NULL.",
+    "sources": [
+      "variant-get"
+    ]
+  },
+  {
+    "id": "dep-082",
+    "domain": "manipulation",
+    "objective": "Query semi-structured data",
+    "prompt": "A field sometimes contains an object instead of a number. Which function gives NULL rather than an invalid-cast error during extraction?",
+    "options": [
+      "variant_get without a type argument",
+      "row_number",
+      "parse_json without a JSON payload",
+      "try_variant_get"
+    ],
+    "correctIndex": 3,
+    "explanation": "try_variant_get tolerates an extraction cast failure by returning NULL. Parsing text and extracting a typed field are separate operations.",
+    "sources": [
+      "try-variant"
+    ]
+  },
+  {
+    "id": "dep-083",
+    "domain": "manipulation",
+    "objective": "Query semi-structured data",
+    "prompt": "A VARIANT column holds an array. What function can expand its elements into rows with position and value information?",
+    "options": [
+      "COUNT(*) without grouping",
+      "TRY_CAST to a scalar string",
+      "variant_explode",
+      "variant_get with a scalar INT type"
+    ],
+    "correctIndex": 2,
+    "explanation": "variant_explode expands a VARIANT array or object into rows. For arrays, the position identifies the element index.",
+    "sources": [
+      "variant-explode"
+    ]
+  },
+  {
+    "id": "dep-084",
+    "domain": "manipulation",
+    "objective": "Enrich with AI functions",
+    "prompt": "A pipeline must classify support messages using a serving model from SQL. Which function is intended for model inference?",
+    "options": [
+      "assertDataFrameEqual",
+      "ai_query",
+      "variant_get",
+      "COPY INTO"
+    ],
+    "correctIndex": 1,
+    "explanation": "ai_query invokes supported serving endpoints or models from SQL for inference. It can support enrichment and classification workloads.",
+    "sources": [
+      "ai-query"
+    ]
+  },
+  {
+    "id": "dep-085",
+    "domain": "manipulation",
+    "objective": "Enrich with AI functions",
+    "prompt": "A team wants to collect row-level inference errors without failing every ai_query call. Which setting should it investigate?",
+    "options": [
+      "failOnError=false and the resulting response/error structure",
+      "Remove the endpoint argument entirely",
+      "Use COUNT(*) around ai_query to suppress all errors",
+      "Set a streaming checkpoint on the SQL scalar value"
+    ],
+    "correctIndex": 0,
+    "explanation": "With failOnError=false, supported ai_query calls can return response and error information. Downstream logic must inspect errors rather than assuming every row has a prediction.",
+    "sources": [
+      "ai-query"
+    ]
+  },
+  {
+    "id": "dep-086",
+    "domain": "manipulation",
+    "objective": "Enrich with AI functions",
+    "prompt": "Why should a model enrichment pipeline retain inference error and model-output validation information?",
+    "options": [
+      "To guarantee the model always produces correct classifications",
+      "To replace all data quality expectations with a notebook title",
+      "To eliminate endpoint access requirements",
+      "To distinguish failed or unusable predictions from valid results before downstream publication"
+    ],
+    "correctIndex": 3,
+    "explanation": "Model calls can fail or return results unsuitable for downstream use. Explicit validation and error handling help prevent publishing unreliable enrichment.",
+    "sources": [
+      "ai-query"
+    ]
+  },
+  {
+    "id": "dep-087",
+    "domain": "manipulation",
+    "objective": "Enforce data quality",
+    "prompt": "A quality rule should count violations but retain both valid and invalid rows. Which expectation action fits?",
+    "options": [
+      "expect_or_fail",
+      "A row filter used only for query-time security",
+      "The default expect action",
+      "expect_or_drop"
+    ],
+    "correctIndex": 2,
+    "explanation": "The default expectation records metrics while retaining violating records. Drop and fail actions change processing behavior.",
+    "sources": [
+      "expectations"
+    ]
+  },
+  {
+    "id": "dep-088",
+    "domain": "manipulation",
+    "objective": "Enforce data quality",
+    "prompt": "Which expectation prevents negative quantities from being written while allowing valid rows through?",
+    "options": [
+      "A column comment explaining positive values",
+      "expect_or_drop with quantity >= 0",
+      "expect with quantity >= 0",
+      "expect_or_fail with quantity >= 0"
+    ],
+    "correctIndex": 1,
+    "explanation": "The drop action removes violating records and records quality metrics while permitting valid output. The default action retains invalid records.",
+    "sources": [
+      "expectations"
+    ],
+    "code": "@dp.table\n@dp.expect_or_drop(\"nonnegative_qty\", \"quantity >= 0\")\ndef clean_inventory():\n    return spark.readStream.table(\"raw_inventory\")"
+  },
+  {
+    "id": "dep-089",
+    "domain": "manipulation",
+    "objective": "Enforce data quality",
+    "prompt": "An invalid record must prevent its target flow update from committing. Which action fits?",
+    "options": [
+      "expect_or_fail",
+      "expect_or_drop",
+      "expect without a violation action",
+      "A nullable output column alone"
+    ],
+    "correctIndex": 0,
+    "explanation": "The fail action rejects the offending flow update. It is appropriate when invalid data must stop that update rather than simply being removed.",
+    "sources": [
+      "expectations"
+    ]
+  },
+  {
+    "id": "dep-090",
+    "domain": "manipulation",
+    "objective": "Quarantine invalid data",
+    "prompt": "A team needs invalid rows available for repair while keeping them out of the clean target. Which pattern fits?",
+    "options": [
+      "Drop invalid rows permanently and keep no raw copy",
+      "Apply a query-time column mask instead of quality checks",
+      "Fail every flow before retaining any diagnostics",
+      "Create valid and quarantine outputs using complementary validation predicates"
+    ],
+    "correctIndex": 3,
+    "explanation": "A quarantine output preserves invalid data and context for remediation. Complementary predicates route valid and invalid records without silently losing failures.",
+    "sources": [
+      "quarantine"
+    ]
+  },
+  {
+    "id": "dep-091",
+    "domain": "manipulation",
+    "objective": "Quarantine invalid data",
+    "prompt": "A validation flag can be NULL. Which approach avoids losing rows from both valid and quarantine branches?",
+    "options": [
+      "Remove the raw input before evaluating the flag",
+      "Convert NULL flags to true without considering the rule",
+      "Explicitly define how NULL validation results are routed",
+      "Use only WHERE flag and WHERE NOT flag and assume every row matches one"
+    ],
+    "correctIndex": 2,
+    "explanation": "SQL filters keep only TRUE results, so a NULL flag matches neither flag nor NOT flag. Normalize the flag or explicitly include NULL failures.",
+    "sources": [
+      "quarantine",
+      "nulls"
+    ]
+  },
+  {
+    "id": "dep-092",
+    "domain": "manipulation",
+    "objective": "Enforce data quality",
+    "prompt": "A quality requirement compares total source and target row counts. Why is a per-record expectation alone insufficient?",
+    "options": [
+      "The requirement should be implemented as a column mask",
+      "Cross-row validation requires aggregate validation logic, often a separate validation dataset and orchestration",
+      "Every expectation automatically queries all source tables",
+      "Row counts can be inferred from a column comment"
+    ],
+    "correctIndex": 1,
+    "explanation": "Expectations evaluate row constraints. Aggregate checks such as row-count reconciliation need a validation pattern that computes and evaluates aggregate results.",
+    "sources": [
+      "quarantine"
+    ]
+  },
+  {
+    "id": "dep-093",
+    "domain": "monitoring",
+    "objective": "Observe account operations",
+    "prompt": "A team needs historical operational observability across workspaces using governed SQL. Which data source is designed for this?",
+    "options": [
+      "Databricks system tables",
+      "Only the current driver stdout stream",
+      "Only notebook revision history",
+      "Only the latest dashboard screenshot"
+    ],
+    "correctIndex": 0,
+    "explanation": "System tables expose account operational data in the system catalog for historical analysis. Individual driver logs do not provide the same account-wide analytical store.",
+    "sources": [
+      "systems"
+    ]
+  },
+  {
+    "id": "dep-094",
+    "domain": "monitoring",
+    "objective": "Analyze billable usage",
+    "prompt": "Which table provides billable usage records and metadata useful for attributing DBU consumption?",
+    "options": [
+      "system.access.audit",
+      "system.information_schema.tables",
+      "system.lakeflow.jobs",
+      "system.billing.usage"
+    ],
+    "correctIndex": 3,
+    "explanation": "system.billing.usage contains usage amounts and metadata for attribution. Audit and job metadata tables answer different operational questions.",
+    "sources": [
+      "billing"
+    ]
+  },
+  {
+    "id": "dep-095",
+    "domain": "monitoring",
+    "objective": "Analyze billable usage",
+    "prompt": "Why join usage records to system.billing.list_prices using SKU and the applicable time interval?",
+    "options": [
+      "To infer contractual discounts that are not in the tables",
+      "To remove the need to inspect usage units",
+      "To estimate list-price cost with the price in effect when the usage occurred",
+      "To turn usage_quantity into a count of failed tasks"
+    ],
+    "correctIndex": 2,
+    "explanation": "Historical list prices have validity intervals. Using the appropriate SKU and interval avoids applying current prices to all past usage; list-price estimates are not negotiated invoice totals.",
+    "sources": [
+      "billing",
+      "pricing"
+    ]
+  },
+  {
+    "id": "dep-096",
+    "domain": "monitoring",
+    "objective": "Analyze billable usage",
+    "prompt": "A team groups usage by job ID but many records have no job ID. What should it do?",
+    "options": [
+      "Fill missing IDs with the most recent successful job ID",
+      "Account for product-specific usage metadata and unattributed records",
+      "Discard every record that lacks a job ID from all cost totals",
+      "Assume every missing job ID means the usage was free"
+    ],
+    "correctIndex": 1,
+    "explanation": "Usage metadata varies by product and workload. Not every billable record belongs to a job, so cost reports must retain or explicitly classify other usage.",
+    "sources": [
+      "billing"
+    ]
+  },
+  {
+    "id": "dep-097",
+    "domain": "monitoring",
+    "objective": "Analyze billable usage",
+    "prompt": "A usage correction appears as a RETRACTION and a RESTATEMENT. How should an aggregate account for corrections?",
+    "options": [
+      "Aggregate signed usage quantities including correction records",
+      "Sum only ORIGINAL records for every historical analysis",
+      "Take the largest quantity for every record type",
+      "Ignore any negative quantity as a parsing error"
+    ],
+    "correctIndex": 0,
+    "explanation": "Retraction records reverse earlier usage and restatements provide corrected values. Including signed corrections prevents overstating or retaining obsolete consumption.",
+    "sources": [
+      "billing"
+    ]
+  },
+  {
+    "id": "dep-098",
+    "domain": "monitoring",
+    "objective": "Audit access",
+    "prompt": "Which system table is appropriate for investigating recorded account and workspace access events?",
+    "options": [
+      "system.billing.list_prices",
+      "system.lakeflow.job_task_run_timeline",
+      "system.compute.warehouse_events only",
+      "system.access.audit"
+    ],
+    "correctIndex": 3,
+    "explanation": "The audit log system table contains activity and access event records. Billing and workload timelines are different sources.",
+    "sources": [
+      "audit"
+    ]
+  },
+  {
+    "id": "dep-099",
+    "domain": "monitoring",
+    "objective": "Monitor jobs",
+    "prompt": "A historical report needs job run start/end intervals and terminal outcomes. Which table is most relevant?",
+    "options": [
+      "system.information_schema.columns",
+      "A notebook-scoped temporary view of package versions",
+      "system.lakeflow.job_run_timeline",
+      "system.billing.list_prices"
+    ],
+    "correctIndex": 2,
+    "explanation": "The job run timeline describes run intervals and outcomes. Long runs can span multiple timeline records, so the reporting grain must be considered.",
+    "sources": [
+      "jobs-tables"
+    ]
+  },
+  {
+    "id": "dep-100",
+    "domain": "monitoring",
+    "objective": "Monitor jobs",
+    "prompt": "A query counts rows in job_run_timeline to estimate total job runs. Why can that overcount?",
+    "options": [
+      "Every row is an unscored certification question",
+      "A long-running job run can be represented by multiple time slices",
+      "Each row always represents a different job definition",
+      "The table stores only one row per calendar month"
+    ],
+    "correctIndex": 1,
+    "explanation": "Timeline records can split a run into intervals. Count distinct run identifiers at the appropriate scope rather than assuming one row equals one run.",
+    "sources": [
+      "jobs-tables"
+    ]
+  },
+  {
+    "id": "dep-101",
+    "domain": "monitoring",
+    "objective": "Monitor jobs",
+    "prompt": "A job is slow and the team must compare individual task durations over previous runs. Which source fits?",
+    "options": [
+      "The job task run timeline system table",
+      "The schema comment metadata alone",
+      "The current list-price table alone",
+      "The OpenSharing recipient table"
+    ],
+    "correctIndex": 0,
+    "explanation": "Task run timelines support historical analysis at task level. Job-level billing and metadata do not independently explain each task duration.",
+    "sources": [
+      "jobs-tables"
+    ]
+  },
+  {
+    "id": "dep-102",
+    "domain": "monitoring",
+    "objective": "Monitor pipeline health",
+    "prompt": "A dashboard should report pipeline data quality and execution progress. Which source should be queried?",
+    "options": [
+      "Only the target table comments",
+      "Only the Git commit messages",
+      "Only a source cloud bucket listing",
+      "The pipeline event log"
+    ],
+    "correctIndex": 3,
+    "explanation": "The pipeline event log records progress, quality metrics, lineage, and execution information. It supports SQL-based operational monitoring.",
+    "sources": [
+      "event-log"
+    ]
+  },
+  {
+    "id": "dep-103",
+    "domain": "monitoring",
+    "objective": "Monitor pipeline health",
+    "prompt": "Which event type is particularly useful for examining pipeline flow progress and expectation metrics?",
+    "options": [
+      "BILLING_PRICE_CHANGED",
+      "NOTEBOOK_RENAMED",
+      "flow_progress",
+      "CREATE_CATALOG"
+    ],
+    "correctIndex": 2,
+    "explanation": "flow_progress events carry processing and quality information for pipeline flows. Filter and extract the relevant structured event details.",
+    "sources": [
+      "event-log"
+    ]
+  },
+  {
+    "id": "dep-104",
+    "domain": "monitoring",
+    "objective": "Monitor pipeline health",
+    "prompt": "Why should an event-log query extract expectation metrics from the appropriate details field rather than counting all events?",
+    "options": [
+      "All expectation outcomes are stored as table column comments",
+      "Events have different types and payloads; only relevant quality events describe expectation outcomes",
+      "Every event represents exactly one rejected input row",
+      "Event count is guaranteed to equal source record count"
+    ],
+    "correctIndex": 1,
+    "explanation": "Pipeline events describe many operations. Quality monitoring requires selecting the relevant event type and parsing its quality metrics.",
+    "sources": [
+      "event-log"
+    ]
+  },
+  {
+    "id": "dep-105",
+    "domain": "monitoring",
+    "objective": "Diagnose query performance",
+    "prompt": "A SQL query scans most of a large table although it filters one customer. What should the engineer inspect first in the query profile?",
+    "options": [
+      "Scan and pruning metrics to determine whether data skipping is effective",
+      "Only the query text font size",
+      "Only the number of source-file comments",
+      "Only the job email recipients"
+    ],
+    "correctIndex": 0,
+    "explanation": "The query profile exposes execution operators and metrics, including scan behavior. It helps distinguish insufficient pruning from join or shuffle bottlenecks.",
+    "sources": [
+      "profile"
+    ]
+  },
+  {
+    "id": "dep-106",
+    "domain": "monitoring",
+    "objective": "Diagnose query performance",
+    "prompt": "A query spends most of its time in exchange operations. What is the likely area to investigate?",
+    "options": [
+      "Whether every column has a metadata tag",
+      "Whether the notebook name contains spaces",
+      "Only the interval between dashboard refreshes",
+      "Data shuffling caused by joins, grouping, or partitioning decisions"
+    ],
+    "correctIndex": 3,
+    "explanation": "Exchange operators redistribute data. High exchange cost suggests investigating data volume, join strategy, grouping keys, and partition distribution.",
+    "sources": [
+      "profile"
+    ]
+  },
+  {
+    "id": "dep-107",
+    "domain": "monitoring",
+    "objective": "Configure alerts",
+    "prompt": "A data quality query returns an invalid-record count. Which feature can evaluate that result against a threshold on a schedule?",
+    "options": [
+      "An unconditional job task value",
+      "A schema grant with a comparison expression",
+      "A SQL alert",
+      "A table comment"
+    ],
+    "correctIndex": 2,
+    "explanation": "SQL alerts run a query and evaluate configured conditions, supporting scheduled monitoring of quality or operational metrics.",
+    "sources": [
+      "alerts"
+    ]
+  },
+  {
+    "id": "dep-108",
+    "domain": "monitoring",
+    "objective": "Configure alerts",
+    "prompt": "An alert query is edited but is not scheduled to run. What operational gap remains?",
+    "options": [
+      "The alert automatically inherits the source file arrival schedule",
+      "The condition will not be evaluated periodically until an execution schedule is configured",
+      "The query automatically evaluates whenever any source row changes",
+      "Every SELECT statement sends an alert on every invocation"
+    ],
+    "correctIndex": 1,
+    "explanation": "A threshold condition alone does not define periodic evaluation. Configure the alert execution schedule and intended notification behavior.",
+    "sources": [
+      "alerts"
+    ]
+  },
+  {
+    "id": "dep-109",
+    "domain": "monitoring",
+    "objective": "Configure job notifications",
+    "prompt": "A team needs messages for task failures even if retries later make the overall job succeed. Where should it configure notifications?",
+    "options": [
+      "At the relevant task level with the desired retry notification behavior",
+      "Only on final successful job completion",
+      "Only in a comment on the task notebook",
+      "Only on SQL warehouse startup"
+    ],
+    "correctIndex": 0,
+    "explanation": "Job and task notifications have different scopes. Task-level notification and retry settings let the team observe the failures it cares about.",
+    "sources": [
+      "notifications"
+    ]
+  },
+  {
+    "id": "dep-110",
+    "domain": "monitoring",
+    "objective": "Monitor with programmatic tools",
+    "prompt": "An operations service needs current job-run status rather than waiting for historical system-table ingestion. What approach fits?",
+    "options": [
+      "Treat the last cached billing row as real-time run status",
+      "Infer status from the number of table columns",
+      "Use only the last repository commit timestamp",
+      "Query the Jobs API or SDK for the run and its task states"
+    ],
+    "correctIndex": 3,
+    "explanation": "The Jobs API and SDK expose current run details. System tables are analytical sources with delivery latency and are not a substitute for every real-time operational check.",
+    "sources": [
+      "jobs-tables",
+      "repair"
+    ]
+  },
+  {
+    "id": "dep-111",
+    "domain": "performance",
+    "objective": "Reduce table maintenance",
+    "prompt": "Which table choice enables platform-managed storage lifecycle and predictive maintenance on supported configurations?",
+    "options": [
+      "A session-only temporary view",
+      "A CSV file stored on the driver",
+      "A Unity Catalog managed table",
+      "An external table whose files are maintained entirely by another system"
+    ],
+    "correctIndex": 2,
+    "explanation": "Managed tables let Databricks manage lifecycle and supported optimizations. External tables leave more storage maintenance responsibility with the owner.",
+    "sources": [
+      "managed",
+      "predictive"
+    ]
+  },
+  {
+    "id": "dep-112",
+    "domain": "performance",
+    "objective": "Apply predictive optimization",
+    "prompt": "What does predictive optimization automate for supported Unity Catalog managed tables?",
+    "options": [
+      "The rewriting of all SQL dashboards into Python",
+      "Maintenance such as OPTIMIZE, VACUUM, and ANALYZE",
+      "Every business transformation and source-quality repair",
+      "Every external table owner permission change"
+    ],
+    "correctIndex": 1,
+    "explanation": "Predictive optimization identifies and performs table maintenance operations. It does not replace business transformations or access-control design.",
+    "sources": [
+      "predictive"
+    ]
+  },
+  {
+    "id": "dep-113",
+    "domain": "performance",
+    "objective": "Apply predictive optimization",
+    "prompt": "A team enables predictive optimization on a supported managed table. How should it treat identical frequent manual maintenance schedules?",
+    "options": [
+      "Review them to avoid unnecessary overlapping maintenance work",
+      "Add a second identical hourly maintenance schedule immediately",
+      "Remove all source ingestion checkpoints",
+      "Convert every managed table to an external table"
+    ],
+    "correctIndex": 0,
+    "explanation": "Automated maintenance can make existing manual schedules redundant. Review overlaps against actual workload needs and operational requirements.",
+    "sources": [
+      "predictive"
+    ]
+  },
+  {
+    "id": "dep-114",
+    "domain": "performance",
+    "objective": "Choose clustering layout",
+    "prompt": "A table is filtered by high-cardinality customer IDs and its query patterns change over time. Which layout approach is recommended to consider?",
+    "options": [
+      "One directory partition for every customer ID",
+      "Both liquid clustering and ZORDER on the same table",
+      "A single uncompressed CSV file",
+      "Liquid clustering using appropriate keys"
+    ],
+    "correctIndex": 3,
+    "explanation": "Liquid clustering supports high-cardinality filters and evolving access patterns. Excessively granular directory partitioning can create many small partitions.",
+    "sources": [
+      "clustering"
+    ]
+  },
+  {
+    "id": "dep-115",
+    "domain": "performance",
+    "objective": "Choose clustering layout",
+    "prompt": "Which statement about liquid clustering and traditional partitioning/ZORDER is accurate?",
+    "options": [
+      "ZORDER must run after every liquid clustering operation",
+      "Liquid clustering applies only to notebook temporary views",
+      "Liquid clustering replaces those layout approaches; they are not combined on the same clustered table",
+      "Liquid clustering requires every table to also be partitioned"
+    ],
+    "correctIndex": 2,
+    "explanation": "Liquid clustering is an alternative to directory partitioning and ZORDER. Choose a compatible table layout rather than stacking incompatible techniques.",
+    "sources": [
+      "clustering"
+    ]
+  },
+  {
+    "id": "dep-116",
+    "domain": "performance",
+    "objective": "Choose clustering layout",
+    "prompt": "Query filters change and a liquid-clustered table needs different keys. What can the engineer do?",
+    "options": [
+      "Disable the transaction log",
+      "Change the clustering keys without first rewriting the entire table",
+      "Drop the table before any clustering-key change",
+      "Convert every key into a physical partition directory"
+    ],
+    "correctIndex": 1,
+    "explanation": "Clustering keys can evolve without an immediate full rewrite. Subsequent optimization applies the new layout; existing files are not automatically fully reorganized merely by changing metadata.",
+    "sources": [
+      "clustering"
+    ]
+  },
+  {
+    "id": "dep-117",
+    "domain": "performance",
+    "objective": "Use automatic clustering",
+    "prompt": "What does CLUSTER BY AUTO provide on supported managed tables?",
+    "options": [
+      "Automatic clustering-key selection based on observed workload patterns",
+      "Automatic creation of one partition per unique key",
+      "Automatic removal of every user privilege",
+      "A promise that no table maintenance is ever needed"
+    ],
+    "correctIndex": 0,
+    "explanation": "Automatic liquid clustering selects keys for the workload on supported managed tables, using predictive optimization. It does not mean physical maintenance disappears.",
+    "sources": [
+      "clustering",
+      "predictive"
+    ]
+  },
+  {
+    "id": "dep-118",
+    "domain": "performance",
+    "objective": "Apply deletion vectors",
+    "prompt": "Frequent small DELETE operations cause costly rewrites of large files. Which table feature can reduce immediate write amplification?",
+    "options": [
+      "A new directory partition for every deleted row",
+      "Disabling the Delta transaction log",
+      "Turning every deletion into an append of the same row",
+      "Deletion vectors"
+    ],
+    "correctIndex": 3,
+    "explanation": "Deletion vectors mark rows as removed without immediately rewriting the entire Parquet file. Readers account for these row-level changes.",
+    "sources": [
+      "deletion-vectors"
+    ]
+  },
+  {
+    "id": "dep-119",
+    "domain": "performance",
+    "objective": "Apply deletion vectors",
+    "prompt": "A team enables deletion vectors on a Delta table used by external engines. What should it validate?",
+    "options": [
+      "The target no longer needs a transaction log",
+      "Only the target display name matters",
+      "The readers and writers support the required table protocol features",
+      "Every consumer can read the table regardless of feature support"
+    ],
+    "correctIndex": 2,
+    "explanation": "Deletion vectors are a table feature with reader/writer compatibility requirements. Validate all external consumers before enabling features they may not support.",
+    "sources": [
+      "deletion-vectors"
+    ]
+  },
+  {
+    "id": "dep-120",
+    "domain": "performance",
+    "objective": "Purge soft-deleted data",
+    "prompt": "Deleted rows remain physically present in files referenced by deletion vectors. Which sequence physically purges them subject to retention?",
+    "options": [
+      "Immediately run VACUUM with zero retention before rewriting files",
+      "REORG TABLE ... APPLY (PURGE), then VACUUM after the appropriate retention interval",
+      "Only SELECT DISTINCT over the current table",
+      "Only rename the table"
+    ],
+    "correctIndex": 1,
+    "explanation": "REORG PURGE rewrites files to remove soft-deleted data. VACUUM later removes obsolete files after retention; logical deletion alone is not immediate physical removal.",
+    "sources": [
+      "deletion-vectors",
+      "vacuum"
+    ]
+  },
+  {
+    "id": "dep-121",
+    "domain": "performance",
+    "objective": "Process incremental changes",
+    "prompt": "A downstream target needs inserts, updates, and deletes from a Delta source. Which feature exposes those row-level changes?",
+    "options": [
+      "Change Data Feed",
+      "A plain append-only read that ignores changed commits",
+      "Only the source table row count",
+      "A static CSV snapshot without operation metadata"
+    ],
+    "correctIndex": 0,
+    "explanation": "CDF exposes change records and commit metadata for incremental consumers. Append-only processing does not describe updates and deletes.",
+    "sources": [
+      "cdf"
+    ]
+  },
+  {
+    "id": "dep-122",
+    "domain": "performance",
+    "objective": "Process incremental changes",
+    "prompt": "Which values can appear in the CDF _change_type column?",
+    "options": [
+      "bronze, silver, and gold",
+      "running, failed, and canceled",
+      "partitioned and clustered",
+      "insert, delete, update_preimage, and update_postimage"
+    ],
+    "correctIndex": 3,
+    "explanation": "CDF identifies row operation types, including the previous and new images of updates. Consumers must handle each operation according to target semantics.",
+    "sources": [
+      "cdf"
+    ]
+  },
+  {
+    "id": "dep-123",
+    "domain": "performance",
+    "objective": "Process incremental changes",
+    "prompt": "When does enabling Change Data Feed start recording available changes?",
+    "options": [
+      "Only after the table is dropped and recreated",
+      "Only when a dashboard reads the table",
+      "From the point it is enabled; it does not reconstruct all earlier changes",
+      "It recreates every change since the original source database was created"
+    ],
+    "correctIndex": 2,
+    "explanation": "CDF begins tracking after it is enabled. Historical changes from before enablement are not backfilled automatically.",
+    "sources": [
+      "cdf"
+    ]
+  },
+  {
+    "id": "dep-124",
+    "domain": "performance",
+    "objective": "Process incremental changes",
+    "prompt": "A CDF consumer was offline longer than retained source history. What is the key risk?",
+    "options": [
+      "All deleted changes are reconstructed from current row values",
+      "Required changes may no longer be available, so the consumer may need recovery or a new baseline",
+      "CDF retains every change forever independently of table retention",
+      "The source automatically doubles the consumer timer"
+    ],
+    "correctIndex": 1,
+    "explanation": "CDF is transient and follows retained table history. Long-term consumers must manage retention or archive changes to avoid unrecoverable gaps.",
+    "sources": [
+      "cdf"
+    ]
+  },
+  {
+    "id": "dep-125",
+    "domain": "performance",
+    "objective": "Compact table files",
+    "prompt": "A table has thousands of small files that increase read overhead. Which operation is designed to improve its file layout?",
+    "options": [
+      "OPTIMIZE",
+      "GRANT SELECT",
+      "CREATE RECIPIENT",
+      "DROP VIEW"
+    ],
+    "correctIndex": 0,
+    "explanation": "OPTIMIZE consolidates small files and applies the table layout strategy. It improves read layout without changing the logical row content.",
+    "sources": [
+      "optimize"
+    ]
+  },
+  {
+    "id": "dep-126",
+    "domain": "performance",
+    "objective": "Compact table files",
+    "prompt": "What should readers observe when bin-packing OPTIMIZE changes physical file layout?",
+    "options": [
+      "An automatic removal of half the rows",
+      "A mandatory schema type change for every column",
+      "A permanent conversion to a nontransactional CSV source",
+      "The same logical table data through transactional table access"
+    ],
+    "correctIndex": 3,
+    "explanation": "File compaction rewrites layout while preserving logical table content. Transactional table access separates logical reads from the underlying file changes.",
+    "sources": [
+      "optimize"
+    ]
+  },
+  {
+    "id": "dep-127",
+    "domain": "performance",
+    "objective": "Improve data skipping",
+    "prompt": "How do file-level statistics help a selective query avoid scanning irrelevant files?",
+    "options": [
+      "They remove the need for a filter predicate",
+      "They guarantee the query reads zero bytes",
+      "Min/max and related statistics identify files that cannot contain matching values",
+      "They create an index entry for every row in every database automatically"
+    ],
+    "correctIndex": 2,
+    "explanation": "Data skipping uses file statistics and predicates to prune files. It reduces scanning when statistics and layout align with the query.",
+    "sources": [
+      "skipping"
+    ],
+    "code": "SELECT * FROM silver.events WHERE customer_id = 914;"
+  },
+  {
+    "id": "dep-128",
+    "domain": "performance",
+    "objective": "Improve data skipping",
+    "prompt": "A selective query filters a column without useful collected statistics. What should be investigated?",
+    "options": [
+      "Whether the query ends with a semicolon",
+      "Statistics coverage for that filter column and the table layout",
+      "Only the number of job email recipients",
+      "Whether the table comment has a timestamp"
+    ],
+    "correctIndex": 1,
+    "explanation": "Skipping depends on relevant statistics and physical layout. Adding compute alone may not fix unnecessary scanning.",
+    "sources": [
+      "skipping",
+      "profile"
+    ]
+  },
+  {
+    "id": "dep-129",
+    "domain": "performance",
+    "objective": "Use caching appropriately",
+    "prompt": "Repeated reads access the same remote Parquet-backed data. What does the Databricks disk cache do?",
+    "options": [
+      "Caches data on local disk to accelerate repeated reads",
+      "Stores every SQL query result permanently in Unity Catalog",
+      "Changes row-level access permissions",
+      "Eliminates the need for durable cloud storage"
+    ],
+    "correctIndex": 0,
+    "explanation": "Disk caching accelerates repeated file reads using local storage. It is distinct from result caching and from durable table storage.",
+    "sources": [
+      "cache"
+    ]
+  },
+  {
+    "id": "dep-130",
+    "domain": "performance",
+    "objective": "Use caching appropriately",
+    "prompt": "A worker holding cached file blocks is replaced. What should the application rely on?",
+    "options": [
+      "The cache becomes the only permanent copy of the table",
+      "The transaction log is rebuilt from notebook outputs",
+      "Every future read returns an empty dataset",
+      "The durable source remains authoritative; cache may need to warm again"
+    ],
+    "correctIndex": 3,
+    "explanation": "A cache is an acceleration layer, not durable storage. Worker replacement can discard cached blocks without deleting source data.",
+    "sources": [
+      "cache"
+    ]
+  },
+  {
+    "id": "dep-131",
+    "domain": "performance",
+    "objective": "Optimize join strategies",
+    "prompt": "A join has a sufficiently small dimension after filtering. What may adaptive query execution do?",
+    "options": [
+      "Remove the join predicate",
+      "Disable every table filter",
+      "Switch to a broadcast join based on runtime statistics",
+      "Convert all fact data to a Python driver list"
+    ],
+    "correctIndex": 2,
+    "explanation": "AQE uses runtime statistics to adjust execution, including supported join-strategy changes. Broadcasting can avoid shuffling a small dimension.",
+    "sources": [
+      "aqe"
+    ]
+  },
+  {
+    "id": "dep-132",
+    "domain": "performance",
+    "objective": "Optimize shuffle performance",
+    "prompt": "Many shuffle partitions are very small after filtering. Which AQE behavior can reduce overhead?",
+    "options": [
+      "Removing every aggregation from the query",
+      "Coalescing small shuffle partitions",
+      "Creating one worker process per output row",
+      "Converting every table into a single high-cardinality directory partition"
+    ],
+    "correctIndex": 1,
+    "explanation": "AQE can coalesce shuffle partitions using runtime sizes, reducing unnecessary task overhead.",
+    "sources": [
+      "aqe"
+    ]
+  },
+  {
+    "id": "dep-133",
+    "domain": "performance",
+    "objective": "Optimize skewed workloads",
+    "prompt": "One join task processes far more data than the others because one key dominates. Which AQE capability should be investigated?",
+    "options": [
+      "Skew-join handling that splits oversized partitions where supported",
+      "Changing only the notebook title",
+      "Increasing the job notification frequency",
+      "Disabling all source checkpoints"
+    ],
+    "correctIndex": 0,
+    "explanation": "Skew creates uneven task workloads. AQE can split skewed join partitions and adjust execution to reduce stragglers.",
+    "sources": [
+      "aqe"
+    ]
+  },
+  {
+    "id": "dep-134",
+    "domain": "performance",
+    "objective": "Diagnose bottlenecks",
+    "prompt": "Doubling compute barely changes query latency because almost every file is scanned for a narrow filter. What change is most directly motivated by the evidence?",
+    "options": [
+      "Double compute again without examining scan metrics",
+      "Add more unrelated tags to the table",
+      "Shorten the alert evaluation interval",
+      "Improve pruning through statistics and a layout aligned with the filter"
+    ],
+    "correctIndex": 3,
+    "explanation": "Scan metrics indicate excessive input work. Improving skipping and layout can reduce that work, while more compute may leave the fundamental bottleneck unchanged.",
+    "sources": [
+      "profile",
+      "skipping"
+    ]
+  },
+  {
+    "id": "dep-135",
+    "domain": "security",
+    "objective": "Enforce least privilege",
+    "prompt": "An operator needs to trigger an existing job but must not edit its definition. Which workspace permission is closest to that need?",
+    "options": [
+      "Workspace administrator",
+      "Ownership of all notebooks in the workspace",
+      "CAN MANAGE RUN on the job",
+      "CAN MANAGE on the job"
+    ],
+    "correctIndex": 2,
+    "explanation": "Job permissions distinguish running/managing runs from editing the job definition. Grant the narrowest permission that supports the required operation.",
+    "sources": [
+      "acls"
+    ]
+  },
+  {
+    "id": "dep-136",
+    "domain": "security",
+    "objective": "Enforce least privilege",
+    "prompt": "An analyst only needs to read one table. Which grant set fits when no existing grants apply?",
+    "options": [
+      "SELECT on the entire metastore without usage privileges",
+      "USE CATALOG, USE SCHEMA, and SELECT on that table",
+      "CREATE TABLE and MODIFY on every schema",
+      "Ownership of the source catalog"
+    ],
+    "correctIndex": 1,
+    "explanation": "Table reads require SELECT plus usage privileges on the containing catalog and schema. Broad ownership or modification grants exceed the requirement.",
+    "sources": [
+      "privileges"
+    ]
+  },
+  {
+    "id": "dep-137",
+    "domain": "security",
+    "objective": "Enforce row-level security",
+    "prompt": "Regional analysts should see only rows matching their authorized region. Which control fits?",
+    "options": [
+      "A row filter evaluated at query time",
+      "A column comment describing regional access",
+      "A table-wide SELECT grant alone",
+      "A disk cache setting"
+    ],
+    "correctIndex": 0,
+    "explanation": "A row filter determines which table rows a user may see. A SELECT grant establishes access but does not independently restrict row visibility.",
+    "sources": [
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-138",
+    "domain": "security",
+    "objective": "Enforce column masking",
+    "prompt": "Support users can query customer records, but email addresses should be redacted for their group. Which control fits?",
+    "options": [
+      "A row filter that deletes every customer row",
+      "A clustering key on email",
+      "A notebook display format only",
+      "A column mask returning an authorized or redacted value"
+    ],
+    "correctIndex": 3,
+    "explanation": "A column mask changes the visible value for protected columns based on policy logic. Display formatting is not enforced access control.",
+    "sources": [
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-139",
+    "domain": "security",
+    "objective": "Enforce column masking",
+    "prompt": "A mask on an INTEGER column returns an incompatible complex STRUCT. What is wrong?",
+    "options": [
+      "Masks may return any type without affecting the query",
+      "INTEGER columns cannot have any masks",
+      "A mask must return a value matching or castable to the column type",
+      "Every mask is required to return BOOLEAN"
+    ],
+    "correctIndex": 2,
+    "explanation": "A column mask is a function returning the visible column value. Its return type must be compatible with the protected column.",
+    "sources": [
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-140",
+    "domain": "security",
+    "objective": "Apply ABAC",
+    "prompt": "Hundreds of columns tagged as sensitive need the same masking rule, including newly tagged columns. Which design scales?",
+    "options": [
+      "Give all users MODIFY so they can redact rows themselves",
+      "A centrally managed ABAC policy driven by governed tags",
+      "Manually clone each table into an ungoverned schema",
+      "Use tags alone without a policy"
+    ],
+    "correctIndex": 1,
+    "explanation": "ABAC policies use governed tags to apply consistent controls across matching objects. Tags classify data; the policy enforces the masking behavior.",
+    "sources": [
+      "abac",
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-141",
+    "domain": "security",
+    "objective": "Apply ABAC",
+    "prompt": "Which tags are required for tag-driven ABAC row filter and column mask policies?",
+    "options": [
+      "Governed tags defined and controlled at account level",
+      "Any free-form notebook tag",
+      "Only tags embedded in a Python wheel filename",
+      "Only a table comment containing the word confidential"
+    ],
+    "correctIndex": 0,
+    "explanation": "ABAC uses governed tags with managed definitions and assignment permissions. Free-form metadata does not automatically become an ABAC control.",
+    "sources": [
+      "abac-requirements"
+    ]
+  },
+  {
+    "id": "dep-142",
+    "domain": "security",
+    "objective": "Apply ABAC",
+    "prompt": "Two distinct ABAC masks both resolve for the same user and column. What behavior should be anticipated?",
+    "options": [
+      "The less restrictive mask is always selected",
+      "The first-created mask silently wins",
+      "Both masks are concatenated into a new column value",
+      "Access is blocked with an error rather than ambiguously choosing one mask"
+    ],
+    "correctIndex": 3,
+    "explanation": "For a given user and column, only one distinct effective mask may resolve. Conflicting distinct policies fail closed rather than selecting an arbitrary policy.",
+    "sources": [
+      "abac-requirements"
+    ]
+  },
+  {
+    "id": "dep-143",
+    "domain": "security",
+    "objective": "Apply ABAC",
+    "prompt": "A pipeline identity is subject to masking on its input. What can happen when it refreshes a materialized view?",
+    "options": [
+      "Masking applies only to dashboard display and cannot affect refreshed data",
+      "The pipeline automatically removes the base-table policy",
+      "Masked data can be persisted into the output",
+      "The refresh automatically uses every querying user identity"
+    ],
+    "correctIndex": 2,
+    "explanation": "Pipeline refresh evaluates source policies under its owner or run-as identity. If that identity is masked, the refreshed output can store those masked values.",
+    "sources": [
+      "abac-requirements"
+    ]
+  },
+  {
+    "id": "dep-144",
+    "domain": "security",
+    "objective": "Protect sensitive identifiers",
+    "prompt": "A deterministic hash lets records for the same person be linked across datasets. What privacy interpretation is appropriate?",
+    "options": [
+      "It grants SELECT to all users",
+      "It is generally pseudonymization rather than a guarantee of irreversible anonymization",
+      "It proves that reidentification is impossible under every condition",
+      "It eliminates every data-retention obligation automatically"
+    ],
+    "correctIndex": 1,
+    "explanation": "Linkable transformed identifiers can still carry reidentification risk. A deterministic hash alone is not proof that information is fully anonymous.",
+    "sources": [
+      "uc-udf",
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-145",
+    "domain": "security",
+    "objective": "Protect sensitive identifiers",
+    "prompt": "A team wants to replace an identifier with a reversible surrogate and keep the mapping accessible only to authorized services. Which technique matches?",
+    "options": [
+      "Tokenization with protected mapping access",
+      "Publishing the original identifier as a table comment",
+      "Partitioning the table by the identifier",
+      "Replacing the identifier with its original value in uppercase"
+    ],
+    "correctIndex": 0,
+    "explanation": "Tokenization substitutes a surrogate for the sensitive identifier. The mapping and its access controls remain security-sensitive.",
+    "sources": [
+      "uc-udf",
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-146",
+    "domain": "security",
+    "objective": "Protect sensitive attributes",
+    "prompt": "Analysts need age ranges but not precise ages. Which transformation reduces precision while retaining aggregate usefulness?",
+    "options": [
+      "Duplicate the exact age in a second unrestricted column",
+      "Add the exact age to a metadata tag",
+      "Sort rows by age without changing values",
+      "Generalize exact ages into age bands"
+    ],
+    "correctIndex": 3,
+    "explanation": "Generalization reduces detail, for example replacing precise ages with ranges. The transformation must be applied in the governed data flow or access policy.",
+    "sources": [
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-147",
+    "domain": "security",
+    "objective": "Enforce protection across workloads",
+    "prompt": "A batch job and a streaming job expose the same sensitive source data. What should the protection design ensure?",
+    "options": [
+      "Source credentials embedded in both notebooks",
+      "Unrestricted raw-data access for all downstream users",
+      "Consistent governed controls and appropriate identities across both paths",
+      "Masking only in the final dashboard because every other read is safe"
+    ],
+    "correctIndex": 2,
+    "explanation": "Protect sensitive data across ingestion, transformation, stored outputs, and query access. A dashboard-only presentation change leaves other paths exposed.",
+    "sources": [
+      "masks",
+      "abac"
+    ]
+  },
+  {
+    "id": "dep-148",
+    "domain": "security",
+    "objective": "Purge retained data",
+    "prompt": "A DELETE removes sensitive rows from current query results. Why is that alone insufficient to prove physical erasure?",
+    "options": [
+      "A column mask physically erases the stored value",
+      "Older files or soft-deleted values may remain until purge and retention-aware cleanup",
+      "DELETE always immediately overwrites every historical file",
+      "Unity Catalog automatically makes all backups disappear"
+    ],
+    "correctIndex": 1,
+    "explanation": "Logical deletion changes current table results. Historical or soft-deleted data can remain in underlying files until the appropriate physical purge and cleanup complete.",
+    "sources": [
+      "vacuum",
+      "deletion-vectors"
+    ]
+  },
+  {
+    "id": "dep-149",
+    "domain": "security",
+    "objective": "Purge retained data",
+    "prompt": "Why must aggressive VACUUM retention be assessed against concurrent and long-running workloads?",
+    "options": [
+      "Files still required by readers or uncommitted writers can be removed",
+      "VACUUM only edits table comments",
+      "VACUUM requires every user to own the catalog",
+      "Retention never affects running queries"
+    ],
+    "correctIndex": 0,
+    "explanation": "Retention protects files potentially needed by active readers and writers. Reducing it without validating workload requirements risks failures or data loss.",
+    "sources": [
+      "vacuum"
+    ]
+  },
+  {
+    "id": "dep-150",
+    "domain": "security",
+    "objective": "Enforce least privilege",
+    "prompt": "A service principal runs a production ingestion job. Which permissions design is appropriate?",
+    "options": [
+      "Assume job edit permission automatically grants every source-table privilege",
+      "Give every workspace user the principal secret",
+      "Use the developer account as the permanent owner of all operations",
+      "Grant the required job/workspace access and data privileges to that identity"
+    ],
+    "correctIndex": 3,
+    "explanation": "Workspace permissions and Unity Catalog data permissions serve different scopes. The production run identity needs the minimum required privileges for both.",
+    "sources": [
+      "acls",
+      "privileges"
+    ]
+  },
+  {
+    "id": "dep-151",
+    "domain": "governance",
+    "objective": "Apply permission inheritance",
+    "prompt": "A group has SELECT on a catalog and the necessary usage privileges. A new table is later created in that catalog. How is the SELECT privilege applied?",
+    "options": [
+      "The group automatically owns the new table",
+      "It is converted to MODIFY",
+      "It is inherited by the new table",
+      "It applies only to tables that existed when the grant was made"
+    ],
+    "correctIndex": 2,
+    "explanation": "Catalog and schema privileges are inherited by applicable existing and future child objects. Usage privileges still matter for access.",
+    "sources": [
+      "privileges"
+    ]
+  },
+  {
+    "id": "dep-152",
+    "domain": "governance",
+    "objective": "Apply permission inheritance",
+    "prompt": "A user has SELECT on a table but no USE SCHEMA on its parent schema. What else is required to query it?",
+    "options": [
+      "A forced OPTIMIZE on the table",
+      "The required USE SCHEMA and USE CATALOG privileges",
+      "Only a new column comment",
+      "Only access to the notebook source code"
+    ],
+    "correctIndex": 1,
+    "explanation": "SELECT is not the complete access path. A user also needs usage privileges on the containing catalog and schema.",
+    "sources": [
+      "privileges"
+    ],
+    "code": "GRANT SELECT ON TABLE prod.analytics.sales TO `reader`;\n-- No catalog/schema usage grants exist for this user."
+  },
+  {
+    "id": "dep-153",
+    "domain": "governance",
+    "objective": "Apply permission inheritance",
+    "prompt": "A team should read every current and future table in one schema but no sibling schema. Where is a SELECT grant best scoped?",
+    "options": [
+      "The intended schema, with the required usage privileges",
+      "The whole catalog",
+      "Every metastore in the account",
+      "Only the workspace notebook folder"
+    ],
+    "correctIndex": 0,
+    "explanation": "Schema-level SELECT inherits to applicable current and future objects in that schema without broadening access to sibling schemas.",
+    "sources": [
+      "privileges"
+    ]
+  },
+  {
+    "id": "dep-154",
+    "domain": "governance",
+    "objective": "Apply permission inheritance",
+    "prompt": "A table-level SELECT grant is revoked, but the user still inherits SELECT from its schema. What should happen?",
+    "options": [
+      "REVOKE creates an explicit table-level deny overriding all parents",
+      "The schema is automatically dropped",
+      "The user becomes the table owner",
+      "The inherited privilege still permits reads when the usage requirements are met"
+    ],
+    "correctIndex": 3,
+    "explanation": "Removing a direct grant does not remove a separate inherited grant. Inspect all effective grant paths when reducing access.",
+    "sources": [
+      "privileges"
+    ],
+    "code": "GRANT SELECT ON SCHEMA prod.analytics TO `readers`;\nREVOKE SELECT ON TABLE prod.analytics.sales FROM `readers`;"
+  },
+  {
+    "id": "dep-155",
+    "domain": "governance",
+    "objective": "Manage discoverability",
+    "prompt": "Users should discover catalog objects and request access without being able to read their data. Which privilege is relevant?",
+    "options": [
+      "SELECT on all tables",
+      "Ownership of every schema",
+      "BROWSE on the catalog",
+      "MODIFY on all tables"
+    ],
+    "correctIndex": 2,
+    "explanation": "BROWSE supports metadata discovery without granting data reads. It can help users find data and request the access they need.",
+    "sources": [
+      "privileges"
+    ]
+  },
+  {
+    "id": "dep-156",
+    "domain": "governance",
+    "objective": "Add descriptive metadata",
+    "prompt": "Which mechanism supplies searchable classification metadata such as business domain on a table?",
+    "options": [
+      "A job retry counter",
+      "Unity Catalog tags",
+      "Streaming checkpoint offsets",
+      "A SQL warehouse auto-stop interval"
+    ],
+    "correctIndex": 1,
+    "explanation": "Tags add key/value classification metadata to securable objects. They help organize and discover data; tags alone do not grant access.",
+    "sources": [
+      "tags"
+    ]
+  },
+  {
+    "id": "dep-157",
+    "domain": "governance",
+    "objective": "Add descriptive metadata",
+    "prompt": "What is the key difference between a governed tag and an unrestricted free-form tag?",
+    "options": [
+      "A governed tag has centrally controlled definitions, allowed values, and assignment permissions",
+      "A governed tag always stores the complete raw table contents",
+      "A governed tag automatically replaces every SQL grant",
+      "A governed tag exists only as a notebook variable"
+    ],
+    "correctIndex": 0,
+    "explanation": "Governed tags impose account-managed definitions and permissions, helping maintain consistent classification and policy inputs.",
+    "sources": [
+      "tags"
+    ]
+  },
+  {
+    "id": "dep-158",
+    "domain": "governance",
+    "objective": "Add descriptive metadata",
+    "prompt": "A table needs a human-readable explanation of its grain and intended use. Which metadata addition is most direct?",
+    "options": [
+      "A new physical partition for every word in the description",
+      "A replacement of SELECT grants with the description",
+      "A checkpoint directory named after the owner",
+      "A table comment describing the grain and purpose"
+    ],
+    "correctIndex": 3,
+    "explanation": "Comments document the meaning and use of data objects. They complement classification tags and permissions but do not themselves enforce access.",
+    "sources": [
+      "privileges",
+      "tags"
+    ]
+  },
+  {
+    "id": "dep-159",
+    "domain": "governance",
+    "objective": "Separate metadata and access controls",
+    "prompt": "A column receives a confidential tag, but no matching ABAC policy or access change exists. What should an engineer avoid assuming?",
+    "options": [
+      "That the column remains part of the table schema",
+      "That a policy can use the tag as a classification input",
+      "That the tag alone has automatically masked the column",
+      "That the tag can be discovered as metadata"
+    ],
+    "correctIndex": 2,
+    "explanation": "Classification metadata and enforcement are separate. A matching policy or other access control must apply before confidentiality tagging changes visible data.",
+    "sources": [
+      "tags",
+      "masks"
+    ]
+  },
+  {
+    "id": "dep-160",
+    "domain": "governance",
+    "objective": "Apply permission inheritance",
+    "prompt": "Why is a catalog-wide SELECT grant often broader than a table-specific analytics requirement?",
+    "options": [
+      "It applies only to one notebook session",
+      "It can grant inherited reads on applicable present and future tables throughout the catalog",
+      "It grants SELECT only to the catalog description",
+      "It expires as soon as a new table is created"
+    ],
+    "correctIndex": 1,
+    "explanation": "Catalog grants are inherited broadly. Use the narrowest suitable scope to avoid granting access to unrelated future data.",
+    "sources": [
+      "privileges"
+    ]
+  },
+  {
+    "id": "dep-161",
+    "domain": "deployment",
+    "objective": "Repair failed jobs",
+    "prompt": "In a multi-task run, ingestion succeeded and transformation failed. After fixing the issue, what avoids needlessly rerunning successful work?",
+    "options": [
+      "Repair the failed run and rerun the relevant unsuccessful tasks",
+      "Always delete the successful task output and restart every task",
+      "Delete the entire job definition",
+      "Clear every source checkpoint before running anything"
+    ],
+    "correctIndex": 0,
+    "explanation": "Job repair can rerun failed or selected tasks with their dependent work while preserving successful results. Side-effect and dependency semantics still need consideration.",
+    "sources": [
+      "repair"
+    ]
+  },
+  {
+    "id": "dep-162",
+    "domain": "deployment",
+    "objective": "Repair failed jobs",
+    "prompt": "A failure was caused by a wrong input parameter, not code. What supported repair workflow should be considered?",
+    "options": [
+      "Rename the job without changing parameters",
+      "Grant all users ownership of the workspace",
+      "Disable the failed task permanently without fixing downstream inputs",
+      "Repair the run with the corrected parameter overrides"
+    ],
+    "correctIndex": 3,
+    "explanation": "Run repair can use updated parameters and relevant settings. Correct the cause, then rerun the appropriate tasks.",
+    "sources": [
+      "repair"
+    ]
+  },
+  {
+    "id": "dep-163",
+    "domain": "deployment",
+    "objective": "Diagnose task failures",
+    "prompt": "What evidence should be inspected first when one task fails in a Lakeflow job run?",
+    "options": [
+      "Only unrelated successful dashboard exports",
+      "Only the previous month list prices",
+      "The task error, logs, and run details in their dependency context",
+      "Only the repository star count"
+    ],
+    "correctIndex": 2,
+    "explanation": "Run and task details identify the failing component and its error context. The appropriate logs and dependency state narrow the cause.",
+    "sources": [
+      "repair"
+    ]
+  },
+  {
+    "id": "dep-164",
+    "domain": "deployment",
+    "objective": "Diagnose pipeline failures",
+    "prompt": "A declarative pipeline update fails. Which evidence helps connect the failure to a dataset and flow?",
+    "options": [
+      "Only the catalog name alphabetical ordering",
+      "Relevant error and flow events in the pipeline event log",
+      "Only the table owner email address",
+      "Only the latest OPTIMIZE file count"
+    ],
+    "correctIndex": 1,
+    "explanation": "The event log records pipeline operations, flow state, and errors. It connects update failures to the affected pipeline components.",
+    "sources": [
+      "event-log"
+    ]
+  },
+  {
+    "id": "dep-165",
+    "domain": "deployment",
+    "objective": "Diagnose execution failures",
+    "prompt": "A Spark workload has one slow stage with a few long-running tasks. Which diagnostic view is most useful?",
+    "options": [
+      "The Spark UI stage/task metrics and execution plan",
+      "Only the job summary title",
+      "Only the table comment history",
+      "Only the recipient sharing activation link"
+    ],
+    "correctIndex": 0,
+    "explanation": "Stage and task metrics expose skew, spill, shuffle, and uneven task durations. Use them with the execution plan to diagnose the bottleneck.",
+    "sources": [
+      "profile",
+      "aqe"
+    ]
+  },
+  {
+    "id": "dep-166",
+    "domain": "deployment",
+    "objective": "Deploy with bundles",
+    "prompt": "The same job and pipeline definitions must be reproducibly deployed from Git. Which mechanism is designed for that?",
+    "options": [
+      "Manual recreation of every resource in the UI",
+      "An unversioned collection of notebook screenshots",
+      "A directory of target table Parquet files alone",
+      "Declarative Automation Bundles"
+    ],
+    "correctIndex": 3,
+    "explanation": "Bundles version code, resource definitions, and deployment settings together. They support repeatable deployment through the Databricks CLI.",
+    "sources": [
+      "bundles"
+    ]
+  },
+  {
+    "id": "dep-167",
+    "domain": "deployment",
+    "objective": "Deploy with bundles",
+    "prompt": "Which command deploys a configured bundle to its production target?",
+    "options": [
+      "databricks bundle init --run-only prod",
+      "databricks workspace list --deploy prod",
+      "databricks bundle deploy -t prod",
+      "databricks jobs run-now -t prod"
+    ],
+    "correctIndex": 2,
+    "explanation": "bundle deploy deploys defined bundle resources and sources. The -t flag selects a configured target; running a job is a separate operation.",
+    "sources": [
+      "bundle-settings"
+    ],
+    "code": "databricks bundle deploy -t prod"
+  },
+  {
+    "id": "dep-168",
+    "domain": "deployment",
+    "objective": "Deploy with bundles",
+    "prompt": "What should CI run to check bundle configuration before deployment?",
+    "options": [
+      "Delete the existing target resources unconditionally",
+      "databricks bundle validate -t <target>",
+      "VACUUM every production table",
+      "Only display the databricks.yml filename"
+    ],
+    "correctIndex": 1,
+    "explanation": "bundle validate checks the configuration for the selected target. It is a useful gate before deployment, alongside appropriate application tests.",
+    "sources": [
+      "bundles",
+      "bundle-settings"
+    ],
+    "code": "databricks bundle validate -t prod"
+  },
+  {
+    "id": "dep-169",
+    "domain": "deployment",
+    "objective": "Use deployment modes",
+    "prompt": "A production bundle should follow production deployment constraints. Which target setting expresses that intent?",
+    "options": [
+      "mode: production",
+      "mode: notebook-local",
+      "mode: unrestricted",
+      "mode: checkpoint"
+    ],
+    "correctIndex": 0,
+    "explanation": "Production mode applies deployment behavior and validation intended for production. It is separate from the target name and environment-specific resource overrides.",
+    "sources": [
+      "modes"
+    ],
+    "code": "targets:\n  prod:\n    mode: production\n    workspace:\n      host: https://production-workspace.example"
+  },
+  {
+    "id": "dep-170",
+    "domain": "deployment",
+    "objective": "Integrate source control and CI/CD",
+    "prompt": "What best supports promoting reviewed changes from development to production?",
+    "options": [
+      "Copy whatever notebook happens to be open on the developer laptop",
+      "Deploy only notebook outputs without their source",
+      "Edit production resources manually after every pull request",
+      "Version code and resource definitions, run checks, then deploy the intended revision to the target"
+    ],
+    "correctIndex": 3,
+    "explanation": "A reproducible CI/CD path ties tested source and definitions to a specific revision and target. Ad hoc copies weaken traceability.",
+    "sources": [
+      "cicd"
+    ]
+  },
+  {
+    "id": "dep-171",
+    "domain": "deployment",
+    "objective": "Configure automation identities",
+    "prompt": "An unattended deployment pipeline needs Databricks access. What identity pattern is appropriate?",
+    "options": [
+      "A shared browser session cookie committed to Git",
+      "An unauthenticated Jobs API call",
+      "A scoped service principal using supported OAuth machine-to-machine authentication",
+      "A developer password pasted into databricks.yml"
+    ],
+    "correctIndex": 2,
+    "explanation": "Service principals and machine-to-machine authentication provide an automation identity. Credentials should be supplied through protected CI mechanisms rather than committed files.",
+    "sources": [
+      "oauth"
+    ]
+  },
+  {
+    "id": "dep-172",
+    "domain": "deployment",
+    "objective": "Integrate Git folders",
+    "prompt": "A team uses Databricks Git folders for development. What should remain the source of truth for repeatable deployment?",
+    "options": [
+      "Only the text of the last successful job notification",
+      "The reviewed source revision and versioned resource configuration",
+      "Each developer current uncommitted workspace edits",
+      "Only the installed runtime package cache"
+    ],
+    "correctIndex": 1,
+    "explanation": "Git folders support source workflows. Reproducible deployment requires a known source revision and versioned definitions, with environment changes controlled through configuration.",
+    "sources": [
+      "cicd"
+    ]
+  },
+  {
+    "id": "dep-173",
+    "domain": "modeling",
+    "objective": "Design medallion models",
+    "prompt": "A lakehouse must preserve raw input for replay, cleanse entities, and serve analytical aggregates. Which layer assignment fits?",
+    "options": [
+      "Bronze for raw input, silver for validated/refined data, gold for business-ready models",
+      "Bronze for all business aggregates, gold for original raw payloads",
+      "Silver only for credentials and bronze only for dashboards",
+      "Use all three names for identical copies without distinct responsibilities"
+    ],
+    "correctIndex": 0,
+    "explanation": "The medallion pattern separates raw ingestion, validated/refined data, and business-ready analytics. This supports replay and progressive quality.",
+    "sources": [
+      "medallion"
+    ]
+  },
+  {
+    "id": "dep-174",
+    "domain": "modeling",
+    "objective": "Design dimensional models",
+    "prompt": "A sales fact table is defined at one row per order line. Why must dimension joins respect that grain?",
+    "options": [
+      "Every dimension must contain exactly one row total",
+      "Fact grain changes automatically to match any joined table",
+      "Dimensions must be stored only as driver variables",
+      "Nonunique dimension matches can multiply fact rows and distort measures"
+    ],
+    "correctIndex": 3,
+    "explanation": "Dimensional modeling requires a clear fact grain and compatible relationships. Multiple matches can duplicate measures unless the query intentionally handles that cardinality.",
+    "sources": [
+      "medallion",
+      "metric-model"
+    ]
+  },
+  {
+    "id": "dep-175",
+    "domain": "modeling",
+    "objective": "Design dimensional history",
+    "prompt": "An analytical model must show a customer category as it was when an order occurred. Which modeling approach supports this?",
+    "options": [
+      "Replace every historical category with NULL",
+      "Join all customer versions on customer ID without temporal criteria",
+      "SCD Type 2 dimension versions joined using the order time and validity interval",
+      "Only the latest SCD Type 1 category for every past order"
+    ],
+    "correctIndex": 2,
+    "explanation": "Type 2 history preserves attribute validity intervals. An as-of join selects the version applicable to the fact event and avoids multiplying rows across all versions.",
+    "sources": [
+      "cdc",
+      "medallion"
+    ]
+  },
+  {
+    "id": "dep-176",
+    "domain": "modeling",
+    "objective": "Design table layouts",
+    "prompt": "A large fact table has evolving filters on customer and date, and many small files. What design combines layout adaptability and balanced files?",
+    "options": [
+      "Storing one tiny file per fact row",
+      "Appropriate liquid clustering keys with compaction maintenance",
+      "Partitioning on every unique transaction ID and never compacting",
+      "Combining ZORDER and liquid clustering on the same table"
+    ],
+    "correctIndex": 1,
+    "explanation": "Liquid clustering supports evolving access patterns, while compaction improves file sizes. High-cardinality directory partitions can fragment the data layout.",
+    "sources": [
+      "clustering",
+      "optimize"
+    ]
+  },
+  {
+    "id": "dep-177",
+    "domain": "modeling",
+    "objective": "Precompute analytical aggregates",
+    "prompt": "Many dashboards reuse the same expensive daily sales aggregation. Which object can store and refresh that result?",
+    "options": [
+      "A materialized view",
+      "A temporary view that recomputes the full query on every read",
+      "A row filter on the raw sales table",
+      "A notebook variable containing the last driver collect result"
+    ],
+    "correctIndex": 0,
+    "explanation": "A materialized view persists precomputed query results and refreshes them. It can reduce repeated aggregate computation for downstream consumers.",
+    "sources": [
+      "mv"
+    ]
+  },
+  {
+    "id": "dep-178",
+    "domain": "modeling",
+    "objective": "Define governed metrics",
+    "prompt": "Different dashboards disagree on the definition of net revenue. Which feature centralizes a reusable governed metric definition?",
+    "options": [
+      "Separate copied SQL expressions in each dashboard",
+      "A file-level clustering key called revenue",
+      "A job retry policy",
+      "A Unity Catalog metric view"
+    ],
+    "correctIndex": 3,
+    "explanation": "Metric views define reusable measures and dimensions centrally. Consumers can query the same metric definition instead of maintaining divergent dashboard calculations.",
+    "sources": [
+      "metrics"
+    ]
+  },
+  {
+    "id": "dep-179",
+    "domain": "modeling",
+    "objective": "Define governed metrics",
+    "prompt": "In a metric view, what is the difference between a dimension and a measure?",
+    "options": [
+      "Dimensions define user passwords and measures define table owners",
+      "Both must store one fixed total that never changes with grouping",
+      "A dimension supplies grouping/filtering fields; a measure supplies an aggregation expression evaluated at the requested grain",
+      "A dimension always contains a SUM and a measure is always a raw text field"
+    ],
+    "correctIndex": 2,
+    "explanation": "Metric views separate fields used to group/filter from measure definitions. Measures can be evaluated at the grouping level requested by the query.",
+    "sources": [
+      "metric-model"
+    ]
+  },
+  {
+    "id": "dep-180",
+    "domain": "modeling",
+    "objective": "Define governed metrics",
+    "prompt": "Why define a ratio such as revenue per order using aggregate measures rather than averaging arbitrary row-level ratios?",
+    "options": [
+      "Grouping never affects any ratio",
+      "The ratio must be evaluated at the requested aggregation grain to preserve its intended meaning",
+      "Every row-level ratio has the same denominator automatically",
+      "Metric views prohibit all division"
+    ],
+    "correctIndex": 1,
+    "explanation": "A ratio of aggregates and an average of per-row ratios can differ. Measure expressions should encode the intended calculation at the query grain.",
+    "sources": [
+      "metric-model"
+    ]
+  }
+]
