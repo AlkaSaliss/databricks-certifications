@@ -258,6 +258,14 @@ main { max-width: 1250px; margin: 0 auto; padding: 32px 40px 35px; }
 .resource-list strong { font-size: 11px; line-height: 1.6; display: block; font-weight: 550; }
 .resource-list small { font-size: 9px; color: #a0ae96; display: block; margin-top: 5px; }
 
+.resource-section-heading { margin: 27px 0 14px; font-size: 18px; }
+.resource-intro { font-size: 11px; margin-bottom: 17px; }
+.community-list > a { align-items: flex-start; }
+.community-list p { font-size: 11px; color: #71836d; margin: 12px 0 9px; }
+.community-note { display: block; font-size: 10px; line-height: 1.7; color: #71806d; border-top: 1px solid var(--line); padding-top: 9px; }
+.community-links { margin-top: 16px; padding-top: 13px; border-top: 1px solid #dce6d5; }
+.community-links > span { display: block; font-size: 10px; font-weight: 600; color: #708366; margin-bottom: 8px; }
+
 @media (min-width: 1600px) { main { padding-top: 40px; } .hero { min-height: 303px; } }
 @media (max-width: 1200px) {
   .sidebar { width: 200px; padding: 29px 14px 20px; }

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { STORAGE_KEY } from '../src/storage.js';
+import { createSession } from '../src/quiz.js';
 
 const questions = JSON.parse(readFileSync(new URL('../src/data/questions.json', import.meta.url)));
 const byId = Object.fromEntries(questions.map(q => [q.id, q]));
@@ -153,12 +154,12 @@ test('corrupt local state is removed without crashing the dashboard', async ({ p
   await expect(page.getByText('Question 1 of 10', { exact: true })).toBeVisible();
 });
 
-test('all theme selections match their domains, including the eight-question modeling pool', async ({ page }) => {
+test('modeling theme uses its enriched pool', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /DOMAIN 09 Data Modeling/ }).click();
-  await expect(page.locator('.start-bar')).toContainText('8 questions');
+  await expect(page.locator('.start-bar')).toContainText('10 questions');
   await page.getByRole('button', { name: 'Start practice', exact: true }).click();
-  await expect(page.getByText('Question 1 of 8', { exact: true })).toBeVisible();
+  await expect(page.getByText('Question 1 of 10', { exact: true })).toBeVisible();
   const state = await saved(page);
   expect(state.active.questions.every(id => byId[id].domain === 'modeling')).toBe(true);
 });
@@ -180,7 +181,7 @@ test('mobile dashboard, quiz, review, and resource library have no horizontal ov
   await noOverflow();
   await page.getByRole('button', { name: 'Study resources', exact: true }).click();
   await page.getByRole('textbox', { name: 'Search study resources' }).fill('watermark');
-  await expect(page.locator('.resource-list > a')).toHaveCount(1);
+  await expect(page.locator('.official-resource-list > a')).toHaveCount(1);
   await noOverflow();
 });
 
@@ -196,4 +197,31 @@ test('desktop dashboard and code questions render without browser exceptions', a
   await expect(page.getByRole('radio')).toHaveCount(4);
   await page.screenshot({ path: 'test-results/desktop-quiz.png', fullPage: true });
   expect(errors).toEqual([]);
+});
+
+
+test('curated community materials are visible and searchable by author', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Study resources', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Community preparation', exact: true })).toBeVisible();
+  await expect(page.locator('.community-list > a')).toHaveCount(11);
+  await page.getByRole('textbox', { name: 'Search study resources' }).fill('Jakub Lasak');
+  await expect(page.locator('.community-list > a')).toHaveCount(4);
+  await expect(page.getByText('No resources match this search.')).toHaveCount(0);
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('new-question community links are hidden until practice feedback is checked', async ({ page }) => {
+  const session = createSession('practice', 'code');
+  session.questions = ['dep-181', ...questions.filter(q => q.domain === 'code' && Number(q.id.split('-')[1]) <= 180).slice(0, 9).map(q => q.id)];
+  session.optionOrders = Object.fromEntries(session.questions.map(id => [id, [0, 1, 2, 3]]));
+  await page.addInitScript(({ key, session }) => localStorage.setItem(key, JSON.stringify({ version: 1, active: session, attempts: [] })), { key: STORAGE_KEY, session });
+  await page.goto('/');
+  await expect(page.locator('.community-links')).toHaveCount(0);
+  await page.locator('.option').first().click();
+  await page.getByRole('button', { name: 'Check answer', exact: true }).click();
+  await expect(page.getByText('Related community practice', { exact: true })).toBeVisible();
+  await expect(page.locator('.community-links a')).toHaveCount(2);
+  await expect(page.locator('.source-links').first().getByRole('link')).not.toHaveCount(0);
 });

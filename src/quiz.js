@@ -100,8 +100,8 @@ export function isValidSession(s) {
   if (s.submittedAt === null ? s.finishReason !== null : !['submitted', 'expired'].includes(s.finishReason)) return false;
   if (!Array.isArray(s.questions) || !s.questions.length || new Set(s.questions).size !== s.questions.length || !s.questions.every(id => Object.hasOwn(questionById, id))) return false;
   if (s.mode === 'practice') {
-    const count = Math.min(10, bank.filter(q => q.domain === s.domainId).length);
-    if (!count || s.questions.length !== count || !s.questions.every(id => questionById[id].domain === s.domainId)) return false;
+    // Keep earlier shorter practice sets valid when their topic pool grows.
+    if (s.questions.length > 10 || !certification.domains.some(d => d.id === s.domainId) || !s.questions.every(id => questionById[id].domain === s.domainId)) return false;
   } else {
     if (s.domainId !== null || s.questions.length !== certification.questionCount) return false;
     if (!domainAllocation().every(d => s.questions.filter(id => questionById[id].domain === d.id).length === d.count)) return false;

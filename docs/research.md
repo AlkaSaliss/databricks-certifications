@@ -1,5 +1,7 @@
 # Research and question-bank provenance
 
+This records the initial 180-question research round. See [community-research.md](community-research.md) for the published app and the subsequent 240-question catalog enrichment.
+
 Research date: October 4, 2026. The user selected only the exam version effective October 9, 2026.
 
 ## Source decisions

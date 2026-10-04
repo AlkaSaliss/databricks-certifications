@@ -3113,5 +3113,1276 @@
     "sources": [
       "metric-model"
     ]
+  },
+  {
+    "id": "dep-181",
+    "domain": "code",
+    "objective": "Bound state in streaming joins",
+    "prompt": "Two streams join machine readings to maintenance events by machine ID. State grows despite watermarks. Matches should occur within 20 minutes. What additional join condition is needed?",
+    "options": [
+      "An event-time range linking the two timestamps within the allowed matching interval",
+      "A sort of the output by machine ID after the join",
+      "A larger checkpoint retention period without changing the predicate",
+      "A GROUP BY machine ID before every write with no time restriction"
+    ],
+    "correctIndex": 0,
+    "explanation": "Watermarks describe lateness, while an event-time constraint lets the engine determine when old join rows can no longer match future input. An equality key alone does not bound matching time.",
+    "sources": [
+      "stream-joins",
+      "watermarks"
+    ],
+    "communitySources": [
+      "kengio-streaming",
+      "lasak-streaming"
+    ]
+  },
+  {
+    "id": "dep-182",
+    "domain": "code",
+    "objective": "Apply streaming outer-join semantics",
+    "prompt": "A left outer stream-stream join has not yet emitted a NULL match for a recent sensor event. Why can this be correct?",
+    "options": [
+      "Outer stream joins always drop unmatched left rows permanently",
+      "A left outer join emits a NULL row before checking any right-side events",
+      "Unmatched rows are released only after deleting the checkpoint",
+      "The engine must wait until the relevant watermark and time bound rule out a future matching event"
+    ],
+    "correctIndex": 3,
+    "explanation": "A streaming outer join cannot immediately declare that no future match will arrive. Watermarks and the matching-time bound establish when an unmatched result can be finalized.",
+    "sources": [
+      "stream-joins",
+      "watermarks"
+    ],
+    "communitySources": [
+      "kengio-streaming",
+      "lasak-streaming"
+    ]
+  },
+  {
+    "id": "dep-183",
+    "domain": "code",
+    "objective": "Understand stream-static enrichment",
+    "prompt": "A stream enriches new events from a slowly changing Delta lookup table. A lookup value is corrected. What happens to old output rows and the next micro-batch?",
+    "options": [
+      "The lookup remains frozen at the first micro-batch for the lifetime of the query",
+      "The join becomes stateful and requires a watermark on the lookup table",
+      "New input uses the latest valid lookup version; old enriched output is not automatically rewritten",
+      "The correction retroactively updates every previously written output row"
+    ],
+    "correctIndex": 2,
+    "explanation": "A Delta stream-static join enriches each micro-batch with the latest valid static table version. Updating the lookup does not itself replay already emitted streaming output.",
+    "sources": [
+      "stream-joins"
+    ],
+    "communitySources": [
+      "kengio-streaming",
+      "derar-notebooks"
+    ]
+  },
+  {
+    "id": "dep-184",
+    "domain": "code",
+    "objective": "Choose multiple-watermark policies",
+    "prompt": "One input stream advances much more slowly than the other. Why can the default global watermark retain state for longer?",
+    "options": [
+      "The global watermark is the average of both wall-clock processing times",
+      "The default min policy advances at the slowest input watermark to protect slower data",
+      "The default policy uses the fastest input watermark and drops all slower data",
+      "The checkpoint fixes the watermark permanently at query start"
+    ],
+    "correctIndex": 1,
+    "explanation": "The default multiple-watermark policy uses the minimum input watermark. A max policy advances faster but can discard data from slower inputs; it is a correctness tradeoff.",
+    "sources": [
+      "watermarks"
+    ],
+    "communitySources": [
+      "kengio-streaming",
+      "kengio-monitoring"
+    ]
+  },
+  {
+    "id": "dep-185",
+    "domain": "code",
+    "objective": "Choose streaming output modes",
+    "prompt": "A windowed aggregation uses complete output mode because every trigger must return the full result table. What state behavior should be expected?",
+    "options": [
+      "The full aggregate state is retained rather than evicting old windows simply because the watermark advanced",
+      "Every emitted window is immediately removed from state",
+      "Complete mode automatically deduplicates all business event IDs",
+      "Complete mode writes only newly finalized rows"
+    ],
+    "correctIndex": 0,
+    "explanation": "Complete mode preserves the result table needed to emit all aggregate rows. Its state behavior differs from watermark-based final-window append output.",
+    "sources": [
+      "output-mode"
+    ],
+    "communitySources": [
+      "kengio-streaming"
+    ]
+  },
+  {
+    "id": "dep-186",
+    "domain": "code",
+    "objective": "Make foreachBatch writes idempotent",
+    "prompt": "A failed foreachBatch Delta append is retried with the same batch. Which writer options can identify and ignore the duplicate transaction?",
+    "options": [
+      "A new random txnAppId on every retry and a fixed txnVersion of zero",
+      "A fresh checkpoint on every retry with ordinary append writes",
+      "A different output table name for each retry",
+      "A stable txnAppId and the same txnVersion for that batch"
+    ],
+    "correctIndex": 3,
+    "explanation": "Delta can recognize a repeated write using the application ID and transaction version. Both identifiers must identify the same logical batch on its retry.",
+    "sources": [
+      "delta-stream",
+      "foreach"
+    ],
+    "communitySources": [
+      "lasak-streaming",
+      "palatshaha-guide"
+    ],
+    "code": "(batch_df.write.format(\"delta\")\n    .option(\"txnAppId\", application_id)\n    .option(\"txnVersion\", batch_id)\n    .mode(\"append\").save(target_path))"
+  },
+  {
+    "id": "dep-187",
+    "domain": "code",
+    "objective": "Recover a reset checkpoint safely",
+    "prompt": "A query using batch IDs as txnVersion restarts from a deliberately fresh checkpoint. Why must its txnAppId generation change?",
+    "options": [
+      "A fresh checkpoint makes Delta append writes nontransactional",
+      "Changing only the query display name automatically resets all transaction identifiers",
+      "Batch IDs restart at zero, so the old application ID could cause genuinely new writes to be treated as already committed",
+      "The table no longer accepts any integer transaction versions"
+    ],
+    "correctIndex": 2,
+    "explanation": "A fresh checkpoint restarts batch numbering. A new application ID distinguishes the new generation from transactions recorded under the previous checkpoint.",
+    "sources": [
+      "delta-stream",
+      "checkpoint"
+    ],
+    "communitySources": [
+      "lasak-streaming",
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-188",
+    "domain": "code",
+    "objective": "Reason about multi-sink failures",
+    "prompt": "A foreachBatch callback commits to Delta table A, then fails before writing table B. Which recovery assumption is sound?",
+    "options": [
+      "The callback cannot ever be invoked again once one sink committed",
+      "Each sink needs safe retry handling; the two separate writes are not one atomic cross-table transaction",
+      "Both tables automatically roll back because the callback failed",
+      "Table A always deletes its latest successful transaction during checkpoint recovery"
+    ],
+    "correctIndex": 1,
+    "explanation": "Separate sink writes can leave a partially completed batch. Make each effect idempotent or provide a recovery strategy rather than assuming callback-wide atomicity.",
+    "sources": [
+      "foreach",
+      "delta-stream"
+    ],
+    "communitySources": [
+      "lasak-streaming",
+      "terpening-guide"
+    ]
+  },
+  {
+    "id": "dep-189",
+    "domain": "code",
+    "objective": "Maintain CDC history boundaries",
+    "prompt": "An AUTO CDC Type 2 target must answer which customer attributes applied at an earlier sequence value. Which generated metadata supports that history?",
+    "options": [
+      "__START_AT and __END_AT boundaries for each stored version",
+      "Only the latest ingestion filename",
+      "Only a count of rows per customer",
+      "Only the current value with no version boundaries"
+    ],
+    "correctIndex": 0,
+    "explanation": "Type 2 history stores versions with sequence-based validity boundaries. Those boundaries allow selecting the version applicable to an earlier point.",
+    "sources": [
+      "cdc"
+    ],
+    "communitySources": [
+      "lasak-apparel",
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-190",
+    "domain": "code",
+    "objective": "Choose serverless performance modes",
+    "prompt": "A scheduled serverless job has a generous completion window and can tolerate slower startup. Which mode should be evaluated for lower cost?",
+    "options": [
+      "Performance-optimized mode solely because it is the default",
+      "A notebook-only standard mode setting applied to all interactive users",
+      "An init script that disables serverless provisioning",
+      "Standard mode for the job, subject to meeting its completion requirement"
+    ],
+    "correctIndex": 3,
+    "explanation": "Standard mode trades startup latency for potential cost savings on supported jobs and pipelines. Measure whether the workload still meets its required completion window.",
+    "sources": [
+      "serverless-practices"
+    ],
+    "communitySources": [
+      "kengio-guide",
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-191",
+    "domain": "code",
+    "objective": "Choose serverless performance modes",
+    "prompt": "A short serverless job is triggered by an interactive workflow and needs minimal startup delay. Which supported mode best matches that priority?",
+    "options": [
+      "A cluster-scoped init script selecting local mode",
+      "An unsupported Spark configuration that reserves executors forever",
+      "Performance-optimized mode",
+      "Standard mode regardless of its slower startup"
+    ],
+    "correctIndex": 2,
+    "explanation": "Performance-optimized mode keeps warm capacity for faster starts. Standard mode is intended for workloads that can tolerate a longer startup delay.",
+    "sources": [
+      "serverless-practices"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-192",
+    "domain": "code",
+    "objective": "Test nondeterministic row ordering",
+    "prompt": "A pure transformation has no sorting contract. Its unit test fails only because identical rows appear in a different order. What should the test do?",
+    "options": [
+      "Change production logic to collect all rows to the driver",
+      "Compare the complete row content without requiring an unspecified row order",
+      "Compare only row counts and omit all value assertions",
+      "Sort only the expected rows but leave actual rows unordered"
+    ],
+    "correctIndex": 1,
+    "explanation": "Spark DataFrame row order is not an implicit contract. Equality checks should validate all values while requiring ordering only when the transformation promises it.",
+    "sources": [
+      "testing-api",
+      "testing"
+    ],
+    "communitySources": [
+      "kengio-testing"
+    ]
+  },
+  {
+    "id": "dep-193",
+    "domain": "code",
+    "objective": "Control For each concurrency",
+    "prompt": "A For each job processes 40 source tables. Running all nested tasks together overloads the source system. Which setting directly limits concurrent iterations?",
+    "options": [
+      "The For each task concurrency setting",
+      "The number of columns selected by each SQL query",
+      "The catalog BROWSE privilege",
+      "The job task-value JSON key name"
+    ],
+    "correctIndex": 0,
+    "explanation": "For each concurrency limits simultaneous executions of the nested task. Choose it according to source capacity and workload requirements instead of launching every iteration together.",
+    "sources": [
+      "for-each"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-194",
+    "domain": "code",
+    "objective": "Implement partial CDC updates",
+    "prompt": "In a CDC source contract, a NULL attribute means that field was not supplied, rather than an instruction to erase it. Which AUTO CDC behavior fits?",
+    "options": [
+      "Always overwrite every target attribute with NULL",
+      "Remove the business key and append each change as a new entity",
+      "Use Type 2 alone and assume it changes NULL semantics",
+      "Enable ignore_null_updates so existing attribute values survive omitted NULL updates"
+    ],
+    "correctIndex": 3,
+    "explanation": "ignore_null_updates preserves existing values for NULL update fields under that source contract. Use this only when NULL means no change, because intentional clearing requires different handling.",
+    "sources": [
+      "cdc"
+    ],
+    "communitySources": [
+      "lasak-apparel",
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-195",
+    "domain": "ingestion",
+    "objective": "Propagate source mutations",
+    "prompt": "A downstream customer replica must apply source updates and deletes. The engineer enables skipChangeCommits on a plain Delta stream. What is missing?",
+    "options": [
+      "Only a higher number of shuffle partitions",
+      "Only sorting source rows by customer ID",
+      "Read Change Data Feed and apply its change operations, or use another design that propagates mutations",
+      "Only a larger maxFilesPerTrigger value"
+    ],
+    "correctIndex": 2,
+    "explanation": "skipChangeCommits avoids processing modifying commits; it does not replicate those updates and deletes. CDF exposes operation records that a downstream consumer can apply.",
+    "sources": [
+      "delta-stream",
+      "cdf"
+    ],
+    "communitySources": [
+      "kengio-guide",
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-196",
+    "domain": "ingestion",
+    "objective": "Parse CSV source contracts",
+    "prompt": "CSV files have no header row, but Auto Loader treats the first row as column names. What should be configured?",
+    "options": [
+      "A larger output-file size",
+      "header=false together with a suitable schema or schema strategy",
+      "A shorter event-time watermark",
+      "A SELECT grant on each inferred column"
+    ],
+    "correctIndex": 1,
+    "explanation": "Auto Loader assumes CSV headers unless configured otherwise. The reader contract must match the actual file structure to avoid losing or misinterpreting the first record.",
+    "sources": [
+      "autoloader-schema",
+      "spark-options"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-197",
+    "domain": "ingestion",
+    "objective": "Use schema hints correctly",
+    "prompt": "A schema hint asks the Parquet reader to read a column as a chosen type, but a file contains an incompatible value. What should the engineer understand?",
+    "options": [
+      "A schema hint is not an unconditional cast; mismatched content can be rescued",
+      "The hint guarantees every value is converted successfully",
+      "The hint automatically deletes incompatible files from storage",
+      "The hint disables the streaming checkpoint"
+    ],
+    "correctIndex": 0,
+    "explanation": "Schema hints guide the reader. They do not guarantee arbitrary conversions; rescued data preserves incompatible content for investigation.",
+    "sources": [
+      "autoloader-schema"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-198",
+    "domain": "ingestion",
+    "objective": "Handle JSON record boundaries",
+    "prompt": "Each source file contains one pretty-printed JSON document across several lines. A line-oriented reader treats the lines as malformed records. Which option fits the file contract?",
+    "options": [
+      "maxFilesPerTrigger=1 without changing JSON parsing",
+      "A complete streaming output mode",
+      "A null-safe join condition on the filename",
+      "multiLine=true for the JSON reader"
+    ],
+    "correctIndex": 3,
+    "explanation": "The multiLine JSON option supports a JSON document spanning multiple lines. Rate limiting and output modes do not change the reader record boundary.",
+    "sources": [
+      "spark-options"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ],
+    "code": "spark.read.option(____, True).json(landing_path)"
+  },
+  {
+    "id": "dep-199",
+    "domain": "ingestion",
+    "objective": "Prepare MySQL CDC sources",
+    "prompt": "A supported MySQL Lakeflow Connect pipeline must capture row changes. Which source configuration matches the documented setup?",
+    "options": [
+      "Only an hourly full-table CSV export",
+      "Only a target Delta table with no source setup",
+      "Binary logging enabled with ROW format, FULL row images, and replication privileges",
+      "Statement-only logging with no replication user"
+    ],
+    "correctIndex": 2,
+    "explanation": "The MySQL connector uses binlog replication. Its documented source setup requires row-based full images and the appropriate privileges and connectivity; availability is Public Preview.",
+    "sources": [
+      "mysql-source"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-200",
+    "domain": "ingestion",
+    "objective": "Choose SQL Server change capture",
+    "prompt": "A SQL Server source table has a primary key and supports both change tracking and CDC. What does the connector documentation recommend for optimal performance?",
+    "options": [
+      "Use Auto Loader directly against SQL Server transaction logs",
+      "Change tracking; when both are enabled, the connector uses change tracking",
+      "CDC is always used even when change tracking is enabled",
+      "Disable both and rely on a full table scan for every change"
+    ],
+    "correctIndex": 1,
+    "explanation": "The connector recommends change tracking for tables with primary keys and CDC when no primary key is available. If both mechanisms are enabled, change tracking is used.",
+    "sources": [
+      "sql-server"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-201",
+    "domain": "ingestion",
+    "objective": "Read Kinesis message streams",
+    "prompt": "A supported Structured Streaming workload reads an Amazon Kinesis message stream directly. Which source format identifies that connector?",
+    "options": [
+      "kinesis",
+      "cloudFiles",
+      "jdbc",
+      "delta"
+    ],
+    "correctIndex": 0,
+    "explanation": "The Kinesis connector uses the kinesis streaming format with stream and access configuration. Auto Loader is for cloud files, not a direct Kinesis message-stream reader.",
+    "sources": [
+      "kinesis"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ],
+    "code": "spark.readStream.format(____).option(\"streamName\", stream_name)"
+  },
+  {
+    "id": "dep-202",
+    "domain": "ingestion",
+    "objective": "Read Pub/Sub message streams",
+    "prompt": "A supported Google Cloud workload reads Pub/Sub directly using the Spark connector. Which configuration identifies the message source?",
+    "options": [
+      "format(\"cloudFiles\") with the topic name as a file extension",
+      "format(\"jdbc\") with a Pub/Sub topic as the SQL database",
+      "format(\"delta\") with no subscription or source connection",
+      "format(\"pubsub\") with projectId, topicId, subscriptionId, and supported authentication"
+    ],
+    "correctIndex": 3,
+    "explanation": "The Pub/Sub reader uses its own source format and source identifiers. Use the documented authentication and runtime support for the selected environment.",
+    "sources": [
+      "spark-options",
+      "pubsub-load"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-203",
+    "domain": "ingestion",
+    "objective": "Choose federation versus replication",
+    "prompt": "Analysts must keep querying a retained lakehouse copy while an operational database is temporarily unavailable. Which acquisition design better supports that requirement?",
+    "options": [
+      "Create a foreign catalog without a working connection",
+      "Replace remote credentials with a source-schema comment",
+      "Ingest and retain a governed replica, with an explicit freshness policy during source outages",
+      "Use only live federation and assume it can query an unavailable remote system"
+    ],
+    "correctIndex": 2,
+    "explanation": "Federation queries the external system in place. A retained ingested copy supports local reads during a source outage, although its freshness is limited until ingestion resumes.",
+    "sources": [
+      "federation",
+      "connect"
+    ],
+    "communitySources": [
+      "terpening-guide"
+    ]
+  },
+  {
+    "id": "dep-204",
+    "domain": "ingestion",
+    "objective": "Design controlled collaboration",
+    "prompt": "Two partners need approved analyses of combined sensitive data but do not want to grant each other unrestricted raw-table reads. Which approach fits?",
+    "options": [
+      "A public storage path containing both complete datasets",
+      "A Clean Room collaboration with approved workloads and controlled outputs",
+      "An unrestricted open share containing every raw column",
+      "A shared source-database administrator credential"
+    ],
+    "correctIndex": 1,
+    "explanation": "Clean Rooms provides a controlled computation collaboration model. Sharing raw assets and credentials does not provide the same restriction on what each partner can inspect.",
+    "sources": [
+      "cleanrooms",
+      "sharing"
+    ],
+    "communitySources": [
+      "terpening-guide"
+    ]
+  },
+  {
+    "id": "dep-205",
+    "domain": "manipulation",
+    "objective": "Resolve ranking ties",
+    "prompt": "The latest customer timestamp is shared by two records. RANK followed by rank=1 keeps both. How can a batch transformation choose one deterministically?",
+    "options": [
+      "ROW_NUMBER ordered by timestamp and a stable unique tie-breaker, then keep row 1",
+      "RANK ordered only by the same timestamp again",
+      "DISTINCT on all columns without selecting a version",
+      "COUNT(*) over the customer and keep every counted row"
+    ],
+    "correctIndex": 0,
+    "explanation": "RANK preserves ties. ROW_NUMBER can select a single record, but its ordering needs a stable tie-breaker to make that selection deterministic.",
+    "sources": [
+      "row-number"
+    ],
+    "communitySources": [
+      "derar-notebooks",
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-206",
+    "domain": "manipulation",
+    "objective": "Count outer-join matches",
+    "prompt": "After a customer LEFT JOIN orders, a customer with no matching orders has one output row with NULL order_id. Which aggregate counts that customer as having zero orders?",
+    "options": [
+      "COUNT(*)",
+      "COUNT(c.customer_id)",
+      "COUNT(COALESCE(o.order_id, c.customer_id))",
+      "COUNT(o.order_id)"
+    ],
+    "correctIndex": 3,
+    "explanation": "COUNT of the nullable right-side key counts only matched non-NULL values. COUNT(*) counts the NULL-extended join row, which would report one instead of zero.",
+    "sources": [
+      "join",
+      "nulls"
+    ],
+    "communitySources": [
+      "derar-notebooks"
+    ],
+    "code": "SELECT c.customer_id, ____ AS orders\nFROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id\nGROUP BY c.customer_id;"
+  },
+  {
+    "id": "dep-207",
+    "domain": "manipulation",
+    "objective": "Distinguish VARIANT and SQL NULL",
+    "prompt": "A VARIANT object contains an explicit JSON null at field archived_at. Which test identifies that encoded null?",
+    "options": [
+      "COUNT(*) on the containing table",
+      "CAST(document AS BINARY) IS NULL",
+      "is_variant_null(document:archived_at)",
+      "document:archived_at IS NULL as an equivalent test in every case"
+    ],
+    "correctIndex": 2,
+    "explanation": "A VARIANT-encoded JSON null differs from SQL NULL. is_variant_null tests the encoded null, while IS NULL tests the SQL-null value.",
+    "sources": [
+      "variant-null",
+      "parse-json"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ],
+    "code": "SELECT ____(parse_json('{\"archived_at\":null}'):archived_at);"
+  },
+  {
+    "id": "dep-208",
+    "domain": "manipulation",
+    "objective": "Deduplicate MERGE input",
+    "prompt": "Two source rows match the same target key and both qualify for an update. What should a MERGE pipeline do before applying them?",
+    "options": [
+      "Use INSERT-only logic and assume source duplicates disappear",
+      "Resolve the source to one intended update per target key using the source ordering contract",
+      "Assume MERGE always picks the first physical source row",
+      "Remove the ON condition so both rows can update every target row"
+    ],
+    "correctIndex": 1,
+    "explanation": "An update with multiple qualifying source matches can be ambiguous. Preprocess the source according to the business ordering contract rather than relying on physical row order.",
+    "sources": [
+      "merge",
+      "row-number"
+    ],
+    "communitySources": [
+      "derar-notebooks",
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-209",
+    "domain": "manipulation",
+    "objective": "Reconcile quality routing",
+    "prompt": "A quality rule quantity > 0 routes TRUE rows to clean and FALSE rows to quarantine. NULL quantities reach neither branch. How should routing be completed?",
+    "options": [
+      "Explicitly classify NULL quantities as invalid and route them with their original payload",
+      "Keep only the two predicates and assume NOT NULL evaluates to TRUE",
+      "Replace every missing quantity with a valid positive value",
+      "Remove the quality flag before calculating counts"
+    ],
+    "correctIndex": 0,
+    "explanation": "SQL predicates with NULL evaluate to unknown, so neither TRUE nor FALSE filtering captures them. Explicit invalid-NULL handling preserves the reconciliation between input and outputs.",
+    "sources": [
+      "quarantine",
+      "nulls"
+    ],
+    "communitySources": [
+      "lasak-apparel"
+    ]
+  },
+  {
+    "id": "dep-210",
+    "domain": "manipulation",
+    "objective": "Handle AI enrichment errors",
+    "prompt": "An enrichment query uses ai_query with failOnError=false. What must happen before its responses become trusted downstream classification labels?",
+    "options": [
+      "Treat every returned row as a valid prediction because the SQL query completed",
+      "Remove all rows with uncommon text before checking inference outcomes",
+      "Change the endpoint name to the output table name",
+      "Inspect per-row error information and validate successful responses against the expected output contract"
+    ],
+    "correctIndex": 3,
+    "explanation": "A non-failing query can contain row-level inference failures or unusable results. Validate the response and error fields before publishing classifications.",
+    "sources": [
+      "ai-query"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-211",
+    "domain": "manipulation",
+    "objective": "Place aggregate quality checks",
+    "prompt": "A rule requires the daily source and target row totals to reconcile. Why should it be implemented as aggregate validation rather than an aggregate function inside a row expectation?",
+    "options": [
+      "Every aggregate inside an expectation is converted into a watermark",
+      "A table comment is sufficient to enforce the totals",
+      "Row expectations evaluate record constraints; cross-row totals need separately computed validation results",
+      "Row expectations automatically aggregate every upstream table"
+    ],
+    "correctIndex": 2,
+    "explanation": "Compute aggregate validation values in an appropriate dataset or task, then evaluate them. Per-record expectation expressions do not themselves define cross-row reconciliation.",
+    "sources": [
+      "expectations",
+      "quarantine"
+    ],
+    "communitySources": [
+      "lasak-apparel",
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-212",
+    "domain": "manipulation",
+    "objective": "Apply CDF operations to current state",
+    "prompt": "A latest-state replica consumes a CDF update containing both update_preimage and update_postimage. Which record should supply the new row value?",
+    "options": [
+      "Ignore all updates and process only insert records",
+      "Apply the update_postimage to the current row; do not treat the preimage as a second new state",
+      "Append both images as two current rows",
+      "Delete every row whenever an update_preimage appears"
+    ],
+    "correctIndex": 1,
+    "explanation": "The preimage describes the old value and the postimage the new one. A current-state replica applies the new image and handles delete events separately.",
+    "sources": [
+      "cdf",
+      "cdc"
+    ],
+    "communitySources": [
+      "derar-notebooks"
+    ]
+  },
+  {
+    "id": "dep-213",
+    "domain": "monitoring",
+    "objective": "Measure source backlog",
+    "prompt": "A Delta streaming source reports increasing numFilesOutstanding while the query remains active. What does that metric indicate?",
+    "options": [
+      "The number of source files waiting to be processed is growing",
+      "The number of target files removed by VACUUM is growing",
+      "The number of invalid SQL alert definitions is growing",
+      "The number of rows currently stored in every state operator is growing"
+    ],
+    "correctIndex": 0,
+    "explanation": "Source backlog metrics describe unprocessed input. They help distinguish ingestion lag from target-file maintenance or state-store size.",
+    "sources": [
+      "delta-stream",
+      "stream-monitor"
+    ],
+    "communitySources": [
+      "kengio-monitoring"
+    ]
+  },
+  {
+    "id": "dep-214",
+    "domain": "monitoring",
+    "objective": "Diagnose late-data loss",
+    "prompt": "A stateful query reports a rising numRowsDroppedByWatermark value. Which investigation is most directly relevant?",
+    "options": [
+      "Increase table-comment length to preserve more metadata",
+      "Treat every dropped row as a duplicate regardless of its timestamp",
+      "Reset the checkpoint without assessing replay and sink effects",
+      "Compare observed event lateness with the configured watermark and business acceptance requirements"
+    ],
+    "correctIndex": 3,
+    "explanation": "The metric indicates rows rejected as too late for the stateful operation. Review timestamp quality, delays, and allowed lateness before changing the policy.",
+    "sources": [
+      "stream-monitor",
+      "watermarks"
+    ],
+    "communitySources": [
+      "kengio-monitoring"
+    ]
+  },
+  {
+    "id": "dep-215",
+    "domain": "monitoring",
+    "objective": "Diagnose state growth",
+    "prompt": "Input volume is stable, but stateOperators memoryUsedBytes and numRowsTotal keep growing over hours. What should be examined?",
+    "options": [
+      "Only the names of job notification recipients",
+      "Only the target schema comments",
+      "The stateful operators, matching-time bounds, and watermark progress",
+      "Only the size of the current notebook output cell"
+    ],
+    "correctIndex": 2,
+    "explanation": "State growth can reveal missing or ineffective cleanup boundaries. Inspect the stateful plan and event-time progress rather than assuming that stable input rate means bounded state.",
+    "sources": [
+      "stream-monitor",
+      "watermarks"
+    ],
+    "communitySources": [
+      "kengio-monitoring",
+      "lasak-streaming"
+    ]
+  },
+  {
+    "id": "dep-216",
+    "domain": "monitoring",
+    "objective": "Identify streaming queries",
+    "prompt": "Several streaming writes run on classic compute. What makes their progress views easier to distinguish in the Spark UI?",
+    "options": [
+      "Disable all progress events",
+      "Assign a unique queryName to each streaming write",
+      "Use the same checkpoint directory for all writes",
+      "Give all streams the same unnamed temporary view"
+    ],
+    "correctIndex": 1,
+    "explanation": "A query name labels streaming query progress for identification. It does not replace the unique checkpoint each query needs.",
+    "sources": [
+      "stream-monitor"
+    ],
+    "communitySources": [
+      "kengio-monitoring"
+    ],
+    "code": "df.writeStream.____(\"warehouse_receipts\").option(\"checkpointLocation\", checkpoint)"
+  },
+  {
+    "id": "dep-217",
+    "domain": "monitoring",
+    "objective": "Choose serverless diagnostics",
+    "prompt": "A serverless workload needs query-performance diagnosis, but the engineer expects a classic-compute Spark UI. Which available tool should be used?",
+    "options": [
+      "The query profile and query history for serverless execution details",
+      "A cluster-local Spark UI assumed to exist for every serverless task",
+      "Only a source file count with no execution details",
+      "Only the bundle resource display name"
+    ],
+    "correctIndex": 0,
+    "explanation": "The serverless documentation directs query-performance diagnosis to the query profile rather than the unavailable classic Spark UI.",
+    "sources": [
+      "serverless-practices",
+      "profile"
+    ],
+    "communitySources": [
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-218",
+    "domain": "monitoring",
+    "objective": "Interpret listener silence",
+    "prompt": "A streaming query is processing one long micro-batch. Neither onQueryProgress nor onQueryIdle has appeared recently. What is the correct initial interpretation?",
+    "options": [
+      "The checkpoint must always be deleted immediately",
+      "All source records must have been permanently lost",
+      "The query must have finished successfully",
+      "Silence alone does not prove failure; inspect the active batch and query status"
+    ],
+    "correctIndex": 3,
+    "explanation": "Progress events occur at batch completion and idle events when waiting for data. A long active batch can be healthy while neither event is emitted.",
+    "sources": [
+      "stream-monitor"
+    ],
+    "communitySources": [
+      "kengio-monitoring"
+    ]
+  },
+  {
+    "id": "dep-219",
+    "domain": "performance",
+    "objective": "Measure optimization benefits",
+    "prompt": "A compaction experiment reduces file count, but a selective query still reads nearly the same bytes. What evidence is needed before claiming improved pruning?",
+    "options": [
+      "Assume fewer files always means proportionally fewer matching rows",
+      "Infer a faster join solely from the number of table columns",
+      "Compare scan/pruning metrics for the same predicate and data under comparable conditions",
+      "Use only the new table name as the success measure"
+    ],
+    "correctIndex": 2,
+    "explanation": "Compaction reduces file overhead, while pruning depends on statistics and layout relative to the predicate. Measure actual scan work rather than equating file count with skipping.",
+    "sources": [
+      "profile",
+      "optimize",
+      "skipping"
+    ],
+    "communitySources": [
+      "lasak-optimization"
+    ]
+  },
+  {
+    "id": "dep-220",
+    "domain": "performance",
+    "objective": "Separate layout and caching effects",
+    "prompt": "A cold baseline query is compared with a warm cached run after OPTIMIZE. The second is faster. What can be concluded?",
+    "options": [
+      "The cache must be disabled permanently for every production workload",
+      "The experiment confounds caching and layout effects, so it does not isolate the benefit of OPTIMIZE",
+      "The full improvement proves the clustering keys are optimal",
+      "OPTIMIZE guarantees every future query will have the same latency"
+    ],
+    "correctIndex": 1,
+    "explanation": "Caching can materially change repeated-read performance. Compare controlled conditions to attribute improvements to a specific layout change.",
+    "sources": [
+      "cache",
+      "profile"
+    ],
+    "communitySources": [
+      "lasak-optimization"
+    ]
+  },
+  {
+    "id": "dep-221",
+    "domain": "performance",
+    "objective": "Recluster existing data",
+    "prompt": "On a supported liquid-clustered Delta table, keys are changed to match new query patterns. Which operation can fully recluster existing data using the current keys?",
+    "options": [
+      "OPTIMIZE the table with FULL",
+      "VACUUM the table before any rewrite",
+      "GRANT SELECT on the new key columns",
+      "Change only the table comment"
+    ],
+    "correctIndex": 0,
+    "explanation": "Changing clustering metadata does not fully reorganize historical files. OPTIMIZE FULL performs a full reclustering on supported configurations.",
+    "sources": [
+      "clustering"
+    ],
+    "communitySources": [
+      "lasak-optimization"
+    ],
+    "code": "ALTER TABLE silver.telemetry CLUSTER BY (device_id, observed_at);\n-- Choose the operation that fully reclusters existing data.\n____;"
+  },
+  {
+    "id": "dep-222",
+    "domain": "performance",
+    "objective": "Understand predictive maintenance scope",
+    "prompt": "A team assumes predictive optimization will maintain its explicit ZORDER layout automatically. What should it verify?",
+    "options": [
+      "Every predictive OPTIMIZE command automatically repeats the previous ZORDER columns",
+      "Predictive optimization converts every table to directory partitioning",
+      "Predictive optimization has no table maintenance capabilities",
+      "Predictive optimization does not perform ZORDER; consider supported automatic liquid clustering or explicit ZORDER maintenance as appropriate"
+    ],
+    "correctIndex": 3,
+    "explanation": "Predictive optimization automates supported maintenance but does not execute ZORDER. Automatic liquid clustering uses a different layout and requires its supported configuration.",
+    "sources": [
+      "predictive",
+      "clustering"
+    ],
+    "communitySources": [
+      "lasak-optimization",
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-223",
+    "domain": "performance",
+    "objective": "Resume batch CDF processing",
+    "prompt": "A batch CDF consumer durably applied all changes through version 207. Versions 208–210 exist and remain retained. What starting version avoids replaying version 207?",
+    "options": [
+      "210 only",
+      "The table creation version regardless of progress",
+      "208",
+      "207"
+    ],
+    "correctIndex": 2,
+    "explanation": "Batch CDF version ranges include their starting version. Starting at the next unprocessed retained version prevents unnecessarily replaying the last fully applied version.",
+    "sources": [
+      "cdf"
+    ],
+    "communitySources": [
+      "derar-notebooks",
+      "palatshaha-guide"
+    ],
+    "code": "(spark.read.option(\"readChangeFeed\", \"true\")\n    .option(\"startingVersion\", ____)\n    .option(\"endingVersion\", 210)\n    .table(\"silver.devices\"))"
+  },
+  {
+    "id": "dep-224",
+    "domain": "performance",
+    "objective": "Retain incremental change history",
+    "prompt": "A downstream audit process needs a year of row-change history, while the source retains only a short CDF window. Which design supports durable long-term analysis?",
+    "options": [
+      "Reduce source history retention to zero to simplify the audit",
+      "Continuously archive available CDF events into a separately governed retained table",
+      "Assume source CDF keeps every change forever",
+      "Query only the latest source rows to reconstruct all deleted values"
+    ],
+    "correctIndex": 1,
+    "explanation": "Source CDF follows transient retained history. Archive changes before they expire when long-term history is required, with suitable retention and governance on the archive.",
+    "sources": [
+      "cdf"
+    ],
+    "communitySources": [
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-225",
+    "domain": "performance",
+    "objective": "Distinguish compaction from deduplication",
+    "prompt": "A table contains duplicate business records. Its small files are compacted with OPTIMIZE. What logical result should be expected?",
+    "options": [
+      "Duplicate rows remain unless a separate deduplication transformation removes them",
+      "OPTIMIZE automatically keeps only the newest row per business key",
+      "Compaction converts duplicate rows into primary-key violations",
+      "Compaction changes every duplicate into a deletion-vector tombstone"
+    ],
+    "correctIndex": 0,
+    "explanation": "OPTIMIZE changes physical layout while preserving logical row content. Deduplication is a separate data transformation requiring a business key and selection rule.",
+    "sources": [
+      "optimize"
+    ],
+    "communitySources": [
+      "lasak-optimization"
+    ]
+  },
+  {
+    "id": "dep-226",
+    "domain": "performance",
+    "objective": "Treat managed and external maintenance differently",
+    "prompt": "A Unity Catalog external table is not receiving the predictive maintenance expected for a managed table. What should the owner understand?",
+    "options": [
+      "Every external table automatically has identical predictive maintenance to a managed table",
+      "The missing maintenance means SELECT privileges can never be granted",
+      "Renaming the table makes its external storage managed without migration",
+      "Predictive optimization is for supported Unity Catalog managed tables; external-table maintenance must be planned separately"
+    ],
+    "correctIndex": 3,
+    "explanation": "Table ownership and storage-management type affect available automation. Verify supported managed-table features and retain responsibility for external data maintenance.",
+    "sources": [
+      "predictive",
+      "managed"
+    ],
+    "communitySources": [
+      "palatshaha-guide",
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-227",
+    "domain": "security",
+    "objective": "Protect quarantine datasets",
+    "prompt": "Invalid rows containing raw personal identifiers are sent to quarantine. The clean target is masked. What protection is still required?",
+    "options": [
+      "Assume masking the clean target physically rewrites all quarantine values",
+      "Grant every dashboard user ownership of quarantine for debugging",
+      "Restrict and govern quarantine access because raw sensitive data can remain there",
+      "Treat quarantine as public because its rows failed validation"
+    ],
+    "correctIndex": 2,
+    "explanation": "Quality failure does not remove sensitivity. Apply appropriate access, masking, and retention controls to raw and quarantine data as well as published outputs.",
+    "sources": [
+      "quarantine",
+      "privileges",
+      "masks"
+    ],
+    "communitySources": [
+      "lasak-apparel",
+      "terpening-guide"
+    ]
+  },
+  {
+    "id": "dep-228",
+    "domain": "security",
+    "objective": "Evaluate masks with user identity",
+    "prompt": "A column mask returns the original value for an authorized account group and a replacement for others. What determines the value visible during a user query?",
+    "options": [
+      "Only the table storage path name",
+      "The policy function evaluated for the querying user identity",
+      "Only the identity that originally inserted the row",
+      "Only the alphabetical order of group names"
+    ],
+    "correctIndex": 1,
+    "explanation": "Query-time column-mask logic uses the relevant user identity and policy conditions. The writer identity alone does not define what each later reader sees.",
+    "sources": [
+      "masks",
+      "uc-udf"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ],
+    "code": "RETURN CASE WHEN is_account_group_member('sensitive_readers')\n  THEN value ELSE '[hidden]' END;"
+  },
+  {
+    "id": "dep-229",
+    "domain": "security",
+    "objective": "Avoid materializing unintended masking",
+    "prompt": "A pipeline must build a secured output from complete source values, but its run-as identity is masked on the source. What must be addressed?",
+    "options": [
+      "Authorize the required source access for the pipeline identity and govern the output for its readers",
+      "Grant SELECT alone and assume it always bypasses every mask",
+      "Disable quality expectations and assume masks stop applying",
+      "Change only the pipeline display name"
+    ],
+    "correctIndex": 0,
+    "explanation": "A refresh can persist values visible to its run identity, including masked values. Deliberately authorize the processing identity where required, while preserving appropriate controls on the resulting output.",
+    "sources": [
+      "abac-requirements",
+      "masks"
+    ],
+    "communitySources": [
+      "terpening-guide"
+    ]
+  },
+  {
+    "id": "dep-230",
+    "domain": "security",
+    "objective": "Protect information through access boundaries",
+    "prompt": "An organization exposes a masked customer view to analysts. Why should it avoid also granting those analysts unrestricted reads of the unmasked base table?",
+    "options": [
+      "The view automatically revokes every base-table grant when queried",
+      "Masked views physically erase all original base values",
+      "SELECT on the base table affects only table comments",
+      "The extra base-table access can expose values the view was meant to protect"
+    ],
+    "correctIndex": 3,
+    "explanation": "A curated access layer does not make an independently granted raw-data path safe. Least-privilege grants must align with the intended protection boundary.",
+    "sources": [
+      "masks",
+      "privileges"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-231",
+    "domain": "governance",
+    "objective": "Separate MANAGE from data reads",
+    "prompt": "A user has MANAGE on a table and the required usage privileges, but no SELECT grant. What does MANAGE itself provide?",
+    "options": [
+      "Only permission to add a notebook comment",
+      "An automatic transfer of table ownership to the user",
+      "Object/privilege management, not automatic data-read privileges; specific access must be granted separately",
+      "Automatic unrestricted SELECT on every table in the metastore"
+    ],
+    "correctIndex": 2,
+    "explanation": "MANAGE is not automatic possession of every data privilege. Holders can manage permissions and can explicitly grant themselves supported privileges, so grant it deliberately.",
+    "sources": [
+      "privileges"
+    ],
+    "communitySources": [
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-232",
+    "domain": "governance",
+    "objective": "Understand tag inheritance scope",
+    "prompt": "A governed tag is set on a catalog. Will every child column automatically carry that tag for a column-matching ABAC rule?",
+    "options": [
+      "No; governed tags cannot be used by any ABAC policy",
+      "No; ABAC can implicitly inherit tags through object levels, but tags do not inherit to columns",
+      "Yes; every column always receives a materialized copy of every catalog tag",
+      "Yes; table usage grants automatically copy all tags onto every column"
+    ],
+    "correctIndex": 1,
+    "explanation": "ABAC has implicit tag inheritance for object levels, but not columns. A rule matching tagged columns requires the appropriate column classification rather than assuming catalog tags propagate to them.",
+    "sources": [
+      "tags",
+      "abac-requirements"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-233",
+    "domain": "governance",
+    "objective": "Grant table creation access",
+    "prompt": "A service principal must create tables in one existing schema and has no prior access. Which scoped privileges form the necessary access path?",
+    "options": [
+      "USE CATALOG on the catalog, USE SCHEMA and CREATE TABLE on the intended schema",
+      "SELECT only on the schema comment",
+      "CREATE TABLE on an unrelated catalog with no usage privileges",
+      "Ownership of every catalog in the metastore"
+    ],
+    "correctIndex": 0,
+    "explanation": "CREATE TABLE does not eliminate the parent usage requirements. Scope the creation privilege to the intended schema with the necessary catalog/schema access.",
+    "sources": [
+      "privileges"
+    ],
+    "communitySources": [
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-234",
+    "domain": "deployment",
+    "objective": "Understand job transaction boundaries",
+    "prompt": "Task A commits a valid Delta write, then downstream task B fails. What should be expected without custom compensation logic?",
+    "options": [
+      "Every successful table write in the job automatically rolls back",
+      "The job drops the output catalog before reporting failure",
+      "The source checkpoint is automatically deleted",
+      "Task A remains committed; the job graph does not automatically roll back all successful task writes"
+    ],
+    "correctIndex": 3,
+    "explanation": "Job orchestration is not a transaction spanning all task effects. Repair failed work or apply deliberate compensation rather than assuming a failed job undoes successful commits.",
+    "sources": [
+      "run-if",
+      "repair"
+    ],
+    "communitySources": [
+      "terpening-guide",
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-235",
+    "domain": "deployment",
+    "objective": "Validate deployment behavior",
+    "prompt": "Bundle configuration validates, but the production run identity cannot read an input table. Which validation would expose that gap?",
+    "options": [
+      "Only a unit test that compares literal integers",
+      "Only changing the deployment target label to prod",
+      "An integration test using the intended run identity and representative target environment",
+      "Only another filename check for databricks.yml"
+    ],
+    "correctIndex": 2,
+    "explanation": "Bundle validation checks configuration, while an integration run verifies identity, dependencies and data access. Both serve distinct purposes.",
+    "sources": [
+      "bundle-settings",
+      "testing",
+      "cicd"
+    ],
+    "communitySources": [
+      "kengio-testing"
+    ]
+  },
+  {
+    "id": "dep-236",
+    "domain": "deployment",
+    "objective": "Run deployed bundle resources",
+    "prompt": "A production bundle has been deployed, and the engineer now needs to execute its ingest_orders job resource. Which command fits?",
+    "options": [
+      "databricks bundle init -t prod ingest_orders",
+      "databricks bundle run -t prod ingest_orders",
+      "databricks bundle validate -t prod ingest_orders",
+      "databricks workspace list ingest_orders"
+    ],
+    "correctIndex": 1,
+    "explanation": "bundle run executes a resource referenced by its bundle key in the selected target. Validation and deployment do not themselves imply that the job has executed.",
+    "sources": [
+      "bundles",
+      "bundle-settings"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ]
+  },
+  {
+    "id": "dep-237",
+    "domain": "deployment",
+    "objective": "Diagnose dependency failures",
+    "prompt": "A task using the default success dependency condition is skipped because its upstream task failed. Where should diagnosis start?",
+    "options": [
+      "Investigate the upstream failure and dependency outcome before treating the skipped task as a code failure",
+      "Immediately rewrite the skipped task because it necessarily threw an exception",
+      "Delete all successful task output without checking the failure",
+      "Assume the job scheduler ignored the dependency graph"
+    ],
+    "correctIndex": 0,
+    "explanation": "A skipped task may never have executed its code. Run details and dependency conditions distinguish an upstream failure from a failure inside that task.",
+    "sources": [
+      "run-if",
+      "repair"
+    ],
+    "communitySources": [
+      "kengio-monitoring",
+      "palatshaha-guide"
+    ]
+  },
+  {
+    "id": "dep-238",
+    "domain": "modeling",
+    "objective": "Join historical dimensions correctly",
+    "prompt": "A Type 2 dimension uses validity intervals with an exclusive end timestamp. Which predicate selects the version active at a fact timestamp, including the current open-ended version?",
+    "options": [
+      "fact_time >= valid_from without any end boundary",
+      "fact_time <= valid_to only, ignoring NULL and valid_from",
+      "Join every version on the business key without a time predicate",
+      "fact_time >= valid_from AND (valid_to IS NULL OR fact_time < valid_to)"
+    ],
+    "correctIndex": 3,
+    "explanation": "For the stated half-open interval contract, the start is inclusive and the end exclusive. Explicit NULL handling includes the currently active dimension version and avoids adjacent-version double matches.",
+    "sources": [
+      "cdc",
+      "metric-model"
+    ],
+    "communitySources": [
+      "lasak-apparel"
+    ],
+    "code": "f.customer_id = d.customer_id\nAND ____"
+  },
+  {
+    "id": "dep-239",
+    "domain": "modeling",
+    "objective": "Evaluate measures at query grain",
+    "prompt": "Two rows have revenue/units of 20/1 and 80/9. A measure defines revenue per unit as SUM(revenue)/SUM(units). What is its combined value?",
+    "options": [
+      "Approximately 14.44",
+      "100",
+      "10",
+      "50"
+    ],
+    "correctIndex": 2,
+    "explanation": "The defined measure divides the combined revenue of 100 by the combined units of 10. Averaging row-level ratios would produce a different metric.",
+    "sources": [
+      "metric-model"
+    ],
+    "communitySources": [
+      "kengio-guide"
+    ],
+    "code": "SELECT SUM(revenue) / SUM(units) AS revenue_per_unit\nFROM VALUES (20, 1), (80, 9) AS sales(revenue, units);"
+  },
+  {
+    "id": "dep-240",
+    "domain": "modeling",
+    "objective": "Distinguish metric and materialized views",
+    "prompt": "A team needs consistent reusable business metric definitions and also wants an expensive summary precomputed. Which distinction is correct?",
+    "options": [
+      "Neither object can participate in governed analytics",
+      "Metric views centralize measure semantics; materialized views persist and refresh query results",
+      "Every metric view is automatically a cached materialized result with a fixed grain",
+      "Materialized views only define labels and never store results"
+    ],
+    "correctIndex": 1,
+    "explanation": "Reusable metric definitions and precomputed results solve different concerns. Choose and combine governed semantic definitions and materialized summaries according to the workload.",
+    "sources": [
+      "metrics",
+      "mv"
+    ],
+    "communitySources": [
+      "terpening-guide"
+    ]
   }
 ]

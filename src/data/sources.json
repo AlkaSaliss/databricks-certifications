@@ -442,5 +442,77 @@
     "title": "Configure Structured Streaming trigger intervals",
     "url": "https://docs.databricks.com/aws/en/structured-streaming/triggers",
     "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "stream-joins",
+    "title": "Work with joins on Databricks",
+    "url": "https://docs.databricks.com/aws/en/transform/join",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "stream-monitor",
+    "title": "Monitoring Structured Streaming queries",
+    "url": "https://docs.databricks.com/aws/en/structured-streaming/stream-monitoring",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "output-mode",
+    "title": "Select an output mode for Structured Streaming",
+    "url": "https://docs.databricks.com/aws/en/structured-streaming/output-mode",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "spark-options",
+    "title": "Spark API options reference",
+    "url": "https://docs.databricks.com/aws/en/spark/api-options",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "serverless-practices",
+    "title": "Best practices for serverless compute",
+    "url": "https://docs.databricks.com/aws/en/compute/serverless/best-practices",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "mysql-source",
+    "title": "Configure MySQL for ingestion",
+    "url": "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/mysql-source-setup",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "sql-server",
+    "title": "Microsoft SQL Server connector concepts",
+    "url": "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/sql-server-concepts",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "kinesis",
+    "title": "Connect to Amazon Kinesis",
+    "url": "https://docs.databricks.com/aws/en/connect/streaming/kinesis/",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "variant-null",
+    "title": "is_variant_null function",
+    "url": "https://docs.databricks.com/aws/en/sql/language-manual/functions/is_variant_null",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "merge",
+    "title": "Upsert into a Delta Lake table using merge",
+    "url": "https://docs.databricks.com/aws/en/delta/merge",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "delta-stream",
+    "title": "Delta Lake table streaming reads and writes",
+    "url": "https://docs.databricks.com/aws/en/structured-streaming/delta-lake",
+    "reviewedOn": "2026-10-04"
+  },
+  {
+    "id": "pubsub-load",
+    "title": "Load data in pipelines on Google Cloud",
+    "url": "https://docs.databricks.com/gcp/en/ldp/load",
+    "reviewedOn": "2026-10-04"
   }
 ]

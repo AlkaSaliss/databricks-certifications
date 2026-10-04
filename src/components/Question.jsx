@@ -1,7 +1,9 @@
 import sources from '../data/sources.json';
+import community from '../data/community-resources.json';
 import Icon from './Icon.jsx';
 
 const sourceById = Object.fromEntries(sources.map(source => [source.id, source]));
+const communityById = Object.fromEntries(community.map(resource => [resource.id, resource]));
 
 export default function Question({ question, order, answer, revealed, onAnswer }) {
   return <>
@@ -26,6 +28,7 @@ export default function Question({ question, order, answer, revealed, onAnswer }
       <div className="feedback-heading"><Icon name={answer === question.correctIndex ? 'check' : 'info'} /><strong>{answer === question.correctIndex ? 'Correct answer' : answer === undefined ? 'Not answered' : 'Let’s break it down'}</strong></div>
       <p>{question.explanation}</p>
       <div className="source-links">{question.sources.map(id => <a key={id} href={sourceById[id].url} target="_blank" rel="noreferrer">{sourceById[id].title}<Icon name="external" size={14} /></a>)}</div>
+      {question.communitySources?.length > 0 && <div className="community-links"><span>Related community practice</span><div className="source-links">{question.communitySources.map(id => <a key={id} href={communityById[id].url} target="_blank" rel="noreferrer">{communityById[id].title}<Icon name="external" size={14} /></a>)}</div></div>}
     </div>}
   </>;
 }

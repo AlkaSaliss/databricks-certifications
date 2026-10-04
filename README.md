@@ -10,7 +10,7 @@ A responsive, browser-only React app for Databricks certification practice. The 
 
 Results include overall accuracy, per-domain scores, and a review of all, missed, or flagged questions. One active session and the last 50 completed sessions are saved locally on the same browser/device. Starting another session asks before discarding the active one. If browser storage is blocked, the app still runs and displays a notice.
 
-The app contains **180 original practice questions**, including 28 Python/SQL code examples, informed by **74 official documentation and primary Apache Spark references**. Every question has an objective, explanation, and supporting source links. These are independent educational questions, not exam dumps or official Databricks questions. Scores are not calibrated predictions of exam success, and the app does not invent an official passing threshold.
+The app contains **240 original practice questions**, including 39 Python/SQL code examples, informed by **86 official documentation and primary Apache Spark references** and **11 curated community preparation resources**. Every question has an objective, explanation, and supporting source links. The 60 questions added in the community research round also link to related public study notes or hands-on labs. Community resource cards identify earlier blueprints and terminology; the October 9 guide remains authoritative. These are independent educational questions, not exam dumps or official Databricks questions. Scores are not calibrated predictions of exam success, and the app does not invent an official passing threshold.
 
 ## Run locally
 
@@ -54,27 +54,28 @@ The [October 2026 official exam guide](https://www.databricks.com/sites/default/
 
 | Domain | Official weight | Questions per simulation | Bank size |
 | --- | ---: | ---: | ---: |
-| Developing Code for Data Processing using Python and SQL | 23% | 14 | 40 |
-| Data Ingestion & Acquisition | 12% | 7 | 28 |
-| Data Manipulation | 12% | 7 | 24 |
-| Monitoring and Alerting | 10% | 6 | 18 |
-| Cost & Performance Optimization | 15% | 9 | 24 |
-| Ensuring Data Security and Compliance | 8% | 5 | 16 |
-| Data Governance | 5% | 3 | 10 |
-| Debugging and Deploying | 10% | 6 | 12 |
-| Data Modeling | 5% | 3 | 8 |
-| **Total** | **100%** | **60** | **180** |
+| Developing Code for Data Processing using Python and SQL | 23% | 14 | 54 |
+| Data Ingestion & Acquisition | 12% | 7 | 38 |
+| Data Manipulation | 12% | 7 | 32 |
+| Monitoring and Alerting | 10% | 6 | 24 |
+| Cost & Performance Optimization | 15% | 9 | 32 |
+| Ensuring Data Security and Compliance | 8% | 5 | 20 |
+| Data Governance | 5% | 3 | 13 |
+| Debugging and Deploying | 10% | 6 | 16 |
+| Data Modeling | 5% | 3 | 11 |
+| **Total** | **100%** | **60** | **240** |
 
 Whole-question counts use largest-remainder rounding. Actual exam forms can differ in their precise distribution.
 
-See [`docs/research.md`](docs/research.md) for source decisions, coverage, product terminology, and the complete reference catalogue. Recheck the official guide before your exam; preview availability and runtime requirements can change. Pair quizzes with hands-on work.
+See [`docs/community-research.md`](docs/community-research.md) for the enrichment round and [`docs/research.md`](docs/research.md) for source decisions, coverage, product terminology, and the complete reference catalogue. Recheck the official guide before your exam; preview availability and runtime requirements can change. Pair quizzes with hands-on work.
 
 ## Maintain the bank
 
 - `src/data/certifications.js`: the certification metadata and domain weights.
 - `src/data/questions.json`: original question content. `correctIndex` is the index in the authored `options` array; displayed options are shuffled separately for each session.
 - `src/data/sources.json`: source IDs, official titles, URLs, and review date.
+- `src/data/community-resources.json`: curated community materials, authors, licensing notes, revision IDs, and blueprint caveats. New questions reference these through `communitySources`.
 - `src/quiz.js`: selection, immutable session actions, deadline enforcement, grading, and saved-session validation.
 - `src/storage.js`: safe local persistence. The content version rejects obsolete sessions if the bank changes incompatibly.
 
-When changing a question, verify the answer against its sources and keep the explanation specific. Preserve stable IDs; increment the engine's `contentVersion` if existing saved answers would change meaning. `npm test` checks IDs, options, source references, blueprint supply, and behavior. Browser tests exercise complete flows, so run them when changing UI or session handling.
+When changing a question, verify the answer against its sources and keep the explanation specific. Catalog additions preserve earlier practice sessions, including the original eight-question modeling sets. Preserve stable IDs; increment the engine's `contentVersion` if existing saved answers would change meaning. `npm test` checks IDs, options, source references, blueprint supply, and behavior. Browser tests exercise complete flows, so run them when changing UI or session handling.

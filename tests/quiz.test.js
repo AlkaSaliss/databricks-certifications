@@ -122,3 +122,14 @@ test('saved sessions reject unknown content, invalid answer orders, malformed me
   }
   assert.equal(isValidSession(null), false);
 });
+
+
+test('catalog additions preserve valid saved practice sessions from a smaller earlier pool', () => {
+  const s = createSession('practice', 'modeling', start, rng);
+  s.questions = questions.filter(q => q.domain === 'modeling' && Number(q.id.split('-')[1]) <= 180).map(q => q.id);
+  assert.equal(s.questions.length, 8);
+  s.optionOrders = Object.fromEntries(s.questions.map(id => [id, [0, 1, 2, 3]]));
+  s.answers[s.questions[0]] = questionById[s.questions[0]].correctIndex;
+  assert.ok(isValidSession(s));
+  assert.equal(gradeSession(s).total, 8);
+});
