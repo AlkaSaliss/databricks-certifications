@@ -12,6 +12,10 @@ Results include overall accuracy, per-domain scores, and a review of all, missed
 
 The app contains **240 original practice questions**, including 39 Python/SQL code examples, informed by **86 official documentation and primary Apache Spark references** and **11 curated community preparation resources**. Every question has an objective, explanation, and supporting source links. The 60 questions added in the community research round also link to related public study notes or hands-on labs. Community resource cards identify earlier blueprints and terminology; the October 9 guide remains authoritative. These are independent educational questions, not exam dumps or official Databricks questions. Scores are not calibrated predictions of exam success, and the app does not invent an official passing threshold.
 
+## Appearance
+
+The app uses Databricks-inspired red-orange accents with navy and warm neutral surfaces. Use the light/dark toggle in the header to change themes; it remembers your choice in this browser and defaults to the device preference on the first visit. Quiz feedback keeps distinct success, warning, and error colors.
+
 ## Run locally
 
 Use Node.js 24 (see `.nvmrc`; minimum 22.12).

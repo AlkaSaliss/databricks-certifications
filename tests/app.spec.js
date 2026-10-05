@@ -225,3 +225,39 @@ test('new-question community links are hidden until practice feedback is checked
   await expect(page.locator('.community-links a')).toHaveCount(2);
   await expect(page.locator('.source-links').first().getByRole('link')).not.toHaveCount(0);
 });
+
+test('light and dark mode can be toggled and the choice survives a reload', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.screenshot({ path: 'test-results/red-light.png', animations: 'disabled' });
+  await page.getByRole('button', { name: 'Switch to dark mode', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.screenshot({ path: 'test-results/red-dark.png', animations: 'disabled' });
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Switch to light mode', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole('button', { name: 'Switch to dark mode', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Switch to dark mode', exact: true }).click();
+  await page.screenshot({ path: 'test-results/red-dark-mobile.png', animations: 'disabled' });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('theme defaults to the device preference when no choice is saved', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByRole('button', { name: 'Switch to light mode', exact: true })).toBeVisible();
+});
+
+test('theme toggling remains usable when browser storage is blocked', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Switch to dark mode', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});

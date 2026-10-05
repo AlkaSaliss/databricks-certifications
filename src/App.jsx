@@ -12,6 +12,13 @@ import Confirm from './components/Confirm.jsx';
 const domainCounts = Object.fromEntries(certification.domains.map(d => [d.id, questions.filter(q => q.domain === d.id).length]));
 
 export default function App() {
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem('lakehouse-prep-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch { /* Theme selection also works without browser storage. */ }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   const [initial] = useState(() => readStore());
   const [store, setStore] = useState(initial.store);
   const [notice, setNotice] = useState(initial.notice);
@@ -24,6 +31,12 @@ export default function App() {
   const [dialog, setDialog] = useState(null);
   const [search, setSearch] = useState('');
   const active = store.active;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#08191f' : '#ff3621');
+    try { window.localStorage.setItem('lakehouse-prep-theme', theme); } catch { /* Keep the current choice for this visit. */ }
+  }, [theme]);
 
   useEffect(() => {
     const saved = writeStore(store);
@@ -80,7 +93,7 @@ export default function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Skip to content</a>
     <aside className="sidebar"><button className="brand" onClick={() => navigate('dashboard')} aria-label="Lakehouse Prep home"><span className="brand-symbol"><Icon name="layers" size={25} /></span><span>lakehouse<span className="brand-sub">PREP</span></span></button><p className="sidebar-label">YOUR STUDY SPACE</p><nav aria-label="Main navigation">{nav.map(item => <button key={item.id} aria-label={item.title} className={`nav-item ${view === item.id || item.id === 'dashboard' && ['quiz', 'results'].includes(view) ? 'active' : ''}`} onClick={() => navigate(item.id)}><Icon name={item.icon} /><span>{item.title}</span>{item.id === 'history' && store.attempts.length > 0 && <span className="nav-count">{store.attempts.length}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="study-tip"><span className="tip-icon"><Icon name="target" /></span><strong>Practice with purpose.</strong><p>Pair your quizzes with hands-on practice in Databricks.</p><a href="https://www.databricks.com/learn/free-edition" target="_blank" rel="noreferrer">Explore Free Edition <Icon name="external" size={14} /></a></div><span className="independent-label">Independent certification prep</span></div></aside>
-    <div className="workspace"><header className="topbar"><span className="topbar-label">Databricks certification practice</span><a href={certification.guideUrl} target="_blank" rel="noreferrer">Official exam guide <Icon name="external" size={15} /></a></header><main id="main-content">
+    <div className="workspace"><header className="topbar"><span className="topbar-label">Databricks certification practice</span><div className="topbar-actions"><button className="theme-toggle" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /><span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button><a href={certification.guideUrl} target="_blank" rel="noreferrer">Official exam guide <Icon name="external" size={15} /></a></div></header><main id="main-content">
       {notice && <div className="notice" role="status"><Icon name="info" size={18} /><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="Dismiss storage notice"><Icon name="close" size={16} /></button></div>}
       {view === 'dashboard' && <>
         <section className="hero"><div className="hero-copy"><p className="eyebrow"><span className="tiny-line" />YOUR NEXT MILESTONE</p><h1>Build confidence.<br /><span>One question at a time.</span></h1><p>Turn what you know into what you can do.<br className="desktop-break" /> Prepare for your next Databricks certification.</p><div className="hero-tags"><span><Icon name="check" size={15} />Source-backed questions</span><span><Icon name="check" size={15} />Built for focused practice</span></div></div><div className="credential-visual" aria-hidden="true"><div className="credential-orbit orbit-one" /><div className="credential-orbit orbit-two" /><div className="credential-card"><div className="credential-mark"><Icon name="layers" size={39} /></div><p>DATABRICKS</p><strong>Data Engineer<br />Professional</strong><span className="credential-level">PROFESSIONAL LEVEL</span><div className="credential-line" /><small>Your next chapter starts here.</small></div><span className="credential-spark spark-one">+</span><span className="credential-spark spark-two">+</span></div></section>
